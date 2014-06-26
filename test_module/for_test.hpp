@@ -28,8 +28,15 @@ namespace for_test_namespace {
     
     const unsigned long CONST_2 = 0x0A;
     typedef char CharsType[7];
+
+
+    namespace bar {
+        int n = 3;
+    }
 }
 
 const long long CONST_3 = 3;
+
+#define DEFINE_1 '1'
 
 #endif /* _FOR_TEST_HPP_8469114_ */

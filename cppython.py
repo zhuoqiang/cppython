@@ -26,7 +26,10 @@ def parse_cpp_file(file_path, include_paths=None):
     tu = TranslationUnit.from_source(
         filename=file_path,
         args=['-x', 'c++'],
-        options=TranslationUnit.PARSE_INCOMPLETE|TranslationUnit.PARSE_SKIP_FUNCTION_BODIES,
+        options=(
+            TranslationUnit.PARSE_INCOMPLETE|
+            TranslationUnit.PARSE_SKIP_FUNCTION_BODIES|
+            TranslationUnit.PARSE_DETAILED_PROCESSING_RECORD),
     )
     return tu
 
@@ -36,10 +39,11 @@ def get_comment(cursor):
     return cursor.brief_comment.strip().strip('/').strip()
     
     
-def get_literal_value(cursor):
+def get_literal(cursor):
     for t in cursor.get_tokens():
         if t.kind == TokenKind.LITERAL:
-            return ast.literal_eval(t.spelling)
+            return t.spelling
+            # return ast.literal_eval(t.spelling)
             
 
 def is_const_int(type):
@@ -68,31 +72,35 @@ def apply_cursor(child, visitor):
             visitor.on_enum(enum_typename, enum_constants)
         
     elif child.kind == CursorKind.VAR_DECL and is_const_int(child.type):
-        visitor.on_const_int(child.spelling, get_literal_value(child))
+        visitor.on_const_int(child.spelling, get_literal(child))
+        
+    elif child.kind == CursorKind.MACRO_DEFINITION:
+        name = child.spelling
+        if not name.startswith('_') and name not in ('OBJC_NEW_PROPERTIES',):
+            visitor.on_macro_value(name, get_literal(child))
+            
         
     else:
         # print child.kind, child.spelling, child.type.spelling
         pass
         
-    # for c in child.get_children():
-    #     print c.kind, c.spelling, c.type.spelling
-    
     
 def apply(tu, visitor):
     cursor = tu.cursor
     filename = cursor.spelling
-    visitor.on_file(filename)
+    visitor.on_file_begin(filename)
     
     CLANG_DEFAULT_ENTITIES = ('__int128_t', '__uint128_t', '__builtin_va_list')
     children = (c for c in cursor.get_children() if c.spelling not in CLANG_DEFAULT_ENTITIES)
     for c in children:
         apply_cursor(c, visitor)
         
+    visitor.on_file_end()
 
-
+    
 class VisitorGroup(object):
     def __init__(self, visitors):
-        self.visitors = visitors
+        self.visitors = list(visitors)
 
     def __getattr__(self, name):
         def method(*l, **kw):
@@ -146,37 +154,53 @@ class PxdVisitor(BaseVisitor):
     def __init__(self, directory='.', time=None):
         super(PxdVisitor, self).__init__(directory, time)
         self.namespaces = []
+        self.content_after_begin = False
         
-    def on_file(self, filename):
+    def on_file_begin(self, filename):
         self.file = open(generate_file_name(self.directory, filename, '.pxd'), 'w')
         self.header_file_path = os.path.relpath(filename, self.directory)
         
         self.writeline('cdef extern from "{}":', self.header_file_path)
         self.reset_indent(1)
-        self.writeline('pass')
+        self.content_after_begin = False        
+        
+    def on_file_end(self):
+        if not self.content_after_begin:
+            self.writeline('pass')
+        self.file.close()
         
     def on_namespace_begin(self, namespace):
         self.namespaces.append(namespace)
         self.writeline('cdef extern from "{}" namespace "{}":',
                        self.header_file_path, '::'.join(self.namespaces))
         self.reset_indent(1)
+        self.content_after_begin = False
         
     def on_namespace_end(self, namespace):
-        self.writeline('pass')
+        if not self.content_after_begin:
+            self.writeline('pass')
         self.reset_indent(-1)
+        self.namespaces.pop()
+        self.content_after_begin = True
         
     def on_typedef(self, name, typename):
         self.writeline('ctypedef {} {}', typename, name)
+        self.content_after_begin = True
         
     def on_enum(self, name, constants):
+        self.writeline()
         self.writeline('cdef enum {}:', name)
-        with Indent(self) as _:
+        with Indent(self):
             for k, v in constants:
                 self.writeline('{} = {}', k, v)
+        self.content_after_begin = True
         
     def on_const_int(self, name, value):
         self.writeline('cdef enum: {} = {}', name, value)
+        self.content_after_begin = True        
         
+    def on_macro_value(self, name, value):
+        pass
         
         
 class PyxVisitor(BaseVisitor):
@@ -186,12 +210,17 @@ class PyxVisitor(BaseVisitor):
     def __init__(self, directory='.', time=None):
         super(PyxVisitor, self).__init__(directory, time)
         
-    def on_file(self, filename):
+    def on_file_begin(self, filename):
         self.file = open(generate_file_name(self.directory, filename, '_proxy.pyx'), 'w')
-        stem = os.path.splitext(os.path.basename(filename))[0]
+        self.import_name = os.path.splitext(os.path.basename(filename))[0]
         
         self.writeline('# distutils: language = c++')
-        self.writeline('cimport {}', stem)
+        self.writeline('cimport {}', self.import_name)
+        self.writeline('import enum # for python 2.x install enum34 package')
+        self.writeline()
+        
+    def on_file_end(self):
+        self.file.close()
         
     def on_namespace_begin(self, namespace):
         pass
@@ -203,27 +232,17 @@ class PyxVisitor(BaseVisitor):
         pass
         
     def on_enum(self, name, constants):
-        pass
+        self.writeline()
+        self.writeline('class {}(enum.IntEnum):', name)
+        with Indent(self) as _:
+            for name, value in constants:
+                self.writeline('{} = {}.{}', name, self.import_name, name)
         
     def on_const_int(self, name, value):
-        pass
+        self.writeline('{} = {}.{}', name, self.import_name, name)
         
-        
-        
-# class Visitor(object):
-#     def __init__(self, directory='.'):
-#         self.directory = directory
-
-#     def on_file(self, filename):
-#         stem = os.path.splitext(filename)[0]
-        
-#         self.pxd = open(os.path.join(self.directory, stem+'.pxd'), 'w')
-#         self.pyx = open(os.path.join(self.directory, stem+'.pyx'), 'w'))
-#         self.cpp = open(os.path.join(self.directory, stem+'_cppython_proxy.cpp'), 'w'))
-#         self.hpp = open(os.path.join(self.directory, stem+'_cppython_proxy.hpp'), 'w'))
-    
-#         self.pyx.write('cimport')
-        
+    def on_macro_value(self, name, value):
+        self.writeline('{} = {}', name, value)
         
         
 if __name__ == '__main__':

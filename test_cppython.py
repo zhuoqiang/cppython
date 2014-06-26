@@ -28,7 +28,8 @@ class Test(unittest.TestCase):
         apply(self.tu, mock)
 
         self.assertListEqual(mock.mock_calls, [
-            call.on_file(self.hpp_path),
+            call.on_file_begin(self.hpp_path),
+            call.on_macro_value('DEFINE_1', "'1'"),
             call.on_namespace_begin('for_test_namespace'),
             call.on_namespace_begin('inner_namespace'),
             call.on_typedef('IntType', 'int'),
@@ -36,17 +37,21 @@ class Test(unittest.TestCase):
                 ('ENUM_START', 0L),
                 ('ENUM_MIDDLE', 1L),
                 ('ENUM_END', 3L)]),
-            call.on_const_int('CONST_1', 1),
+            call.on_const_int('CONST_1', '1'),
             call.on_namespace_end('inner_namespace'),
-            call.on_const_int('CONST_2', 10),
+            call.on_const_int('CONST_2', '0x0A'),
             call.on_typedef('CharsType', 'char [7]'),
+            call.on_namespace_begin('bar'),            
+            call.on_namespace_end('bar'), 
             call.on_namespace_end('for_test_namespace'),
-            call.on_const_int('CONST_3', 3),
+            call.on_const_int('CONST_3', '3'),
+            call.on_file_end(),
         ])
 
         
     def test_apply_visitor(self):
-        v = VisitorGroup([PxdVisitor('test_module'), PyxVisitor('test_module')])
+        directory = 'test_module'
+        v = VisitorGroup(v(directory) for v in (PxdVisitor, PyxVisitor))
         apply(self.tu, v)
 
         

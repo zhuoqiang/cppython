@@ -8,10 +8,10 @@ import os
 from distutils.core import setup
 from Cython.Build import cythonize
 
+HERE = os.path.dirname(__file__)
+
 setup(
-    name = "foo",
-    ext_modules = cythonize('for_test_proxy.pyx'),
-    sources=["for_test.cpp"],
+    ext_modules = cythonize(os.path.join(HERE, 'for_test_proxy.pyx')),
 )
 
 if __name__ == '__main__':
