@@ -31,8 +31,13 @@ namespace for_test_namespace {
 
 
     namespace bar {
-        int n = 3;
+        int n = 3; // will be skipped
     }
+
+    struct S1 {
+        int a;
+        CharsType b;
+    };
 }
 
 const long long CONST_3 = 3;

@@ -10,7 +10,8 @@ import clang
 import datetime
 import ast
 from datetime import datetime
-
+from contextlib import contextmanager
+        
 from clang.cindex import *
 
 __author__ = 'ZHUO Qiang'
@@ -58,7 +59,6 @@ def apply_cursor(child, visitor):
         for c in child.get_children():
             apply_cursor(c, visitor)
         visitor.on_namespace_end(child.spelling)
-        return
 
     elif child.kind == CursorKind.TYPEDEF_DECL:
         visitor.on_typedef(child.spelling, child.underlying_typedef_type.spelling)
@@ -79,6 +79,18 @@ def apply_cursor(child, visitor):
         if not name.startswith('_') and name not in ('OBJC_NEW_PROPERTIES',):
             visitor.on_macro_value(name, get_literal(child))
             
+        
+    elif child.kind == CursorKind.STRUCT_DECL:
+        name = child.spelling
+        visitor.on_compound_begin('struct', name)
+        for c in child.get_children():
+            apply_cursor(c, visitor)
+        visitor.on_compound_end('struct', name)
+            
+        
+    elif child.kind == CursorKind.FIELD_DECL:
+        name = child.spelling
+        visitor.on_field(name, child.type.spelling)
         
     else:
         # print child.kind, child.spelling, child.type.spelling
@@ -138,15 +150,16 @@ class BaseVisitor(object):
         self.indent_level = max(0, self.indent_level+level)
         
 
-class Indent():
-    def __init__(self, obj):
-        self.obj = obj
-    def __enter__(self):
-        self.obj.reset_indent(1)
-    def __exit__(self, type, value, traceback):
-        self.obj.reset_indent(-1)
-        
 
+@contextmanager        
+def indent(visitor):
+    visitor.reset_indent(1)
+    try:
+        yield
+    finally:
+        visitor.reset_indent(-1)
+        
+        
 class PxdVisitor(BaseVisitor):
     '''Generate pxd file exporting C++ header declaration in cython
     '''
@@ -157,6 +170,8 @@ class PxdVisitor(BaseVisitor):
         self.content_after_begin = False
         
     def on_file_begin(self, filename):
+        # TODO Add file header
+        
         self.file = open(generate_file_name(self.directory, filename, '.pxd'), 'w')
         self.header_file_path = os.path.relpath(filename, self.directory)
         
@@ -190,7 +205,7 @@ class PxdVisitor(BaseVisitor):
     def on_enum(self, name, constants):
         self.writeline()
         self.writeline('cdef enum {}:', name)
-        with Indent(self):
+        with indent(self):
             for k, v in constants:
                 self.writeline('{} = {}', k, v)
         self.content_after_begin = True
@@ -202,6 +217,22 @@ class PxdVisitor(BaseVisitor):
     def on_macro_value(self, name, value):
         pass
         
+    def on_compound_begin(self, kind, name):
+        self.content_after_begin = False
+        self.writeline()
+        self.writeline('cdef {} {}:', kind, name)
+        self.reset_indent(1)
+        
+    def on_compound_end(self, kind, name):
+        if not self.content_after_begin:
+            self.writeline('pass')
+        self.reset_indent(-1)
+        self.content_after_begin = True        
+        
+    def on_field(self, name, typename):
+        self.writeline('{} {}', typename, name)
+        self.content_after_begin = True
+        
         
 class PyxVisitor(BaseVisitor):
     '''Generate pyx file wrappering C++ entieis in cython
@@ -211,6 +242,7 @@ class PyxVisitor(BaseVisitor):
         super(PyxVisitor, self).__init__(directory, time)
         
     def on_file_begin(self, filename):
+        # TODO Add file header
         self.file = open(generate_file_name(self.directory, filename, '_proxy.pyx'), 'w')
         self.import_name = os.path.splitext(os.path.basename(filename))[0]
         
@@ -234,7 +266,7 @@ class PyxVisitor(BaseVisitor):
     def on_enum(self, name, constants):
         self.writeline()
         self.writeline('class {}(enum.IntEnum):', name)
-        with Indent(self) as _:
+        with indent(self):
             for name, value in constants:
                 self.writeline('{} = {}.{}', name, self.import_name, name)
         
@@ -243,6 +275,15 @@ class PyxVisitor(BaseVisitor):
         
     def on_macro_value(self, name, value):
         self.writeline('{} = {}', name, value)
+        
+    def on_compound_begin(self, kind, name):
+        pass
+        
+    def on_compound_end(self, kind, name):
+        pass
+        
+    def on_field(self, name, typename):
+        pass
         
         
 if __name__ == '__main__':

@@ -19,6 +19,7 @@ class Test(unittest.TestCase):
     def setUp(self):
         self.hpp_path = 'test_module/for_test.hpp'
         self.tu = parse_cpp_file(self.hpp_path)
+        self.maxDiff = None
 
     def tearDown(self):
         pass
@@ -43,6 +44,10 @@ class Test(unittest.TestCase):
             call.on_typedef('CharsType', 'char [7]'),
             call.on_namespace_begin('bar'),            
             call.on_namespace_end('bar'), 
+            call.on_compound_begin('struct', 'S1'),
+            call.on_field('a', 'int'),
+            call.on_field('b', 'CharsType'),
+            call.on_compound_end('struct', 'S1'),
             call.on_namespace_end('for_test_namespace'),
             call.on_const_int('CONST_3', '3'),
             call.on_file_end(),
