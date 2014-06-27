@@ -53,11 +53,22 @@ def is_const_int(type):
         TypeKind.USHORT, TypeKind.UINT, TypeKind.ULONG, TypeKind.ULONGLONG, TypeKind.UINT128)
             
             
-def apply_cursor(child, visitor):
+def apply(child, visitor):
+    if child.kind == CursorKind.TRANSLATION_UNIT:
+        filename = child.spelling
+        visitor.on_file_begin(filename)
+    
+        CLANG_DEFAULT_ENTITIES = ('__int128_t', '__uint128_t', '__builtin_va_list')
+        children = (c for c in child.get_children() if c.spelling not in CLANG_DEFAULT_ENTITIES)
+        for c in children:
+            apply(c, visitor)
+        visitor.on_file_end()
+    
+    
     if child.kind == CursorKind.NAMESPACE and child.get_children():
         visitor.on_namespace_begin(child.spelling)
         for c in child.get_children():
-            apply_cursor(c, visitor)
+            apply(c, visitor)
         visitor.on_namespace_end(child.spelling)
 
     elif child.kind == CursorKind.TYPEDEF_DECL:
@@ -84,7 +95,7 @@ def apply_cursor(child, visitor):
         name = child.spelling
         visitor.on_compound_begin('struct', name)
         for c in child.get_children():
-            apply_cursor(c, visitor)
+            apply(c, visitor)
         visitor.on_compound_end('struct', name)
         
         
@@ -96,19 +107,6 @@ def apply_cursor(child, visitor):
         # print child.kind, child.spelling, child.type.spelling
         pass
         
-    
-def apply(tu, visitor):
-    cursor = tu.cursor
-    filename = cursor.spelling
-    visitor.on_file_begin(filename)
-    
-    CLANG_DEFAULT_ENTITIES = ('__int128_t', '__uint128_t', '__builtin_va_list')
-    children = (c for c in cursor.get_children() if c.spelling not in CLANG_DEFAULT_ENTITIES)
-    for c in children:
-        apply_cursor(c, visitor)
-        
-    visitor.on_file_end()
-
     
 class VisitorGroup(object):
     def __init__(self, visitors):

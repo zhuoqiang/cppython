@@ -26,7 +26,7 @@ class Test(unittest.TestCase):
 
     def test_apply_mock(self):
         mock = MagicMock()
-        apply(self.tu, mock)
+        apply(self.tu.cursor, mock)
 
         self.assertListEqual(mock.mock_calls, [
             call.on_file_begin(self.hpp_path),
@@ -57,7 +57,7 @@ class Test(unittest.TestCase):
     def test_apply_visitor(self):
         directory = 'test_module'
         v = VisitorGroup(v(directory) for v in (PxdVisitor, PyxVisitor))
-        apply(self.tu, v)
+        apply(self.tu.cursor, v)
 
         
 if __name__ == '__main__':
