@@ -86,7 +86,7 @@ def apply_cursor(child, visitor):
         for c in child.get_children():
             apply_cursor(c, visitor)
         visitor.on_compound_end('struct', name)
-            
+        
         
     elif child.kind == CursorKind.FIELD_DECL:
         name = child.spelling
@@ -215,7 +215,7 @@ class PxdVisitor(BaseVisitor):
         self.content_after_begin = True        
         
     def on_macro_value(self, name, value):
-        pass
+        self.writeline('DEF {} = {}', name, value)
         
     def on_compound_begin(self, kind, name):
         self.content_after_begin = False
@@ -274,7 +274,7 @@ class PyxVisitor(BaseVisitor):
         self.writeline('{} = {}.{}', name, self.import_name, name)
         
     def on_macro_value(self, name, value):
-        self.writeline('{} = {}', name, value)
+        self.writeline('{} = {}.{}', name, self.import_name, name)
         
     def on_compound_begin(self, kind, name):
         pass

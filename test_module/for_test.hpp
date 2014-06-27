@@ -38,6 +38,11 @@ namespace for_test_namespace {
         int a;
         CharsType b;
     };
+
+    // typedef struct {
+    //     int a;
+    // } S2;
+
 }
 
 const long long CONST_3 = 3;
