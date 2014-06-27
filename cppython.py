@@ -34,7 +34,15 @@ def parse_cpp_file(file_path, include_paths=None):
     )
     return tu
 
-
+    
+def pairwise(iterable):
+    iterable = iter(iterable)
+    last = next(iterable)
+    for i in iterable:
+        yield last, i
+        last = i
+    yield last, None
+    
 def get_comment(cursor):
     # TODO add docstring from comment
     return cursor.brief_comment.strip().strip('/').strip()
@@ -53,8 +61,15 @@ def is_const_int(type):
         TypeKind.USHORT, TypeKind.UINT, TypeKind.ULONG, TypeKind.ULONGLONG, TypeKind.UINT128)
             
             
+def get_compound_typedef_name(compound_type, next_cursor):
+    if (next_cursor and next_cursor.kind == CursorKind.TYPEDEF_DECL
+        and '{} {}'.format(compound_type, next_cursor.spelling) == next_cursor.underlying_typedef_type.spelling):
+        return next_cursor.spelling
+    
+        
 def apply(children, visitor):
-    for child in children:
+    lookahead_children = pairwise(children)
+    for child, next_child in lookahead_children:
         if child.kind == CursorKind.TRANSLATION_UNIT:
             filename = child.spelling
             visitor.on_file_begin(filename)
@@ -88,9 +103,15 @@ def apply(children, visitor):
             if not name.startswith('_') and name not in ('OBJC_NEW_PROPERTIES',):
                 visitor.on_macro_value(name, get_literal(child))
 
-
         elif child.kind == CursorKind.STRUCT_DECL:
             name = child.spelling
+            if not name:
+                name = get_compound_typedef_name('struct', next_child)
+                if name:
+                    next(lookahead_children) # discard typedef
+                else:
+                    continue # discard struct with no name
+                
             visitor.on_compound_begin('struct', name)
             apply(child.get_children(), visitor)
             visitor.on_compound_end('struct', name)

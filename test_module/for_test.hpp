@@ -39,9 +39,9 @@ namespace for_test_namespace {
         CharsType b;
     };
 
-    // typedef struct {
-    //     int a;
-    // } S2;
+    typedef struct {
+        int a;
+    } S2;
 
 }
 
