@@ -53,59 +53,55 @@ def is_const_int(type):
         TypeKind.USHORT, TypeKind.UINT, TypeKind.ULONG, TypeKind.ULONGLONG, TypeKind.UINT128)
             
             
-def apply(child, visitor):
-    if child.kind == CursorKind.TRANSLATION_UNIT:
-        filename = child.spelling
-        visitor.on_file_begin(filename)
-    
-        CLANG_DEFAULT_ENTITIES = ('__int128_t', '__uint128_t', '__builtin_va_list')
-        children = (c for c in child.get_children() if c.spelling not in CLANG_DEFAULT_ENTITIES)
-        for c in children:
-            apply(c, visitor)
-        visitor.on_file_end()
-    
-    
-    if child.kind == CursorKind.NAMESPACE and child.get_children():
-        visitor.on_namespace_begin(child.spelling)
-        for c in child.get_children():
-            apply(c, visitor)
-        visitor.on_namespace_end(child.spelling)
+def apply(children, visitor):
+    for child in children:
+        if child.kind == CursorKind.TRANSLATION_UNIT:
+            filename = child.spelling
+            visitor.on_file_begin(filename)
 
-    elif child.kind == CursorKind.TYPEDEF_DECL:
-        visitor.on_typedef(child.spelling, child.underlying_typedef_type.spelling)
-    
-    elif child.kind == CursorKind.ENUM_DECL:
-        enum_typename = child.spelling
-        enum_constants = [(c.spelling, c.enum_value)
-                          for c in child.get_children()
-                          if c.kind == CursorKind.ENUM_CONSTANT_DECL]
-        if enum_constants:
-            visitor.on_enum(enum_typename, enum_constants)
-        
-    elif child.kind == CursorKind.VAR_DECL and is_const_int(child.type):
-        visitor.on_const_int(child.spelling, get_literal(child))
-        
-    elif child.kind == CursorKind.MACRO_DEFINITION:
-        name = child.spelling
-        if not name.startswith('_') and name not in ('OBJC_NEW_PROPERTIES',):
-            visitor.on_macro_value(name, get_literal(child))
-            
-        
-    elif child.kind == CursorKind.STRUCT_DECL:
-        name = child.spelling
-        visitor.on_compound_begin('struct', name)
-        for c in child.get_children():
-            apply(c, visitor)
-        visitor.on_compound_end('struct', name)
-        
-        
-    elif child.kind == CursorKind.FIELD_DECL:
-        name = child.spelling
-        visitor.on_field(name, child.type.spelling)
-        
-    else:
-        # print child.kind, child.spelling, child.type.spelling
-        pass
+            CLANG_DEFAULT_ENTITIES = ('__int128_t', '__uint128_t', '__builtin_va_list')
+            children = (c for c in child.get_children() if c.spelling not in CLANG_DEFAULT_ENTITIES)
+            apply(children, visitor)
+            visitor.on_file_end()
+
+        if child.kind == CursorKind.NAMESPACE and child.get_children():
+            visitor.on_namespace_begin(child.spelling)
+            apply(child.get_children(), visitor)
+            visitor.on_namespace_end(child.spelling)
+
+        elif child.kind == CursorKind.TYPEDEF_DECL:
+            visitor.on_typedef(child.spelling, child.underlying_typedef_type.spelling)
+
+        elif child.kind == CursorKind.ENUM_DECL:
+            enum_typename = child.spelling
+            enum_constants = [(c.spelling, c.enum_value)
+                              for c in child.get_children()
+                              if c.kind == CursorKind.ENUM_CONSTANT_DECL]
+            if enum_constants:
+                visitor.on_enum(enum_typename, enum_constants)
+
+        elif child.kind == CursorKind.VAR_DECL and is_const_int(child.type):
+            visitor.on_const_int(child.spelling, get_literal(child))
+
+        elif child.kind == CursorKind.MACRO_DEFINITION:
+            name = child.spelling
+            if not name.startswith('_') and name not in ('OBJC_NEW_PROPERTIES',):
+                visitor.on_macro_value(name, get_literal(child))
+
+
+        elif child.kind == CursorKind.STRUCT_DECL:
+            name = child.spelling
+            visitor.on_compound_begin('struct', name)
+            apply(child.get_children(), visitor)
+            visitor.on_compound_end('struct', name)
+
+        elif child.kind == CursorKind.FIELD_DECL:
+            name = child.spelling
+            visitor.on_field(name, child.type.spelling)
+
+        else:
+            # print child.kind, child.spelling, child.type.spelling
+            pass
         
     
 class VisitorGroup(object):
