@@ -21,11 +21,15 @@ class Test(unittest.TestCase):
     def tearDown(self):
         pass
 
-    def test_m(self):
+    def test_constant(self):
         self.assertEqual(EnumType.ENUM_START, 0)
+        self.assertEqual(EnumType.ENUM_MIDDLE, 1)        
+        self.assertEqual(EnumType.ENUM_END, 3)                
         self.assertEqual(CONST_1, 1)
         self.assertEqual(CONST_2, 10)
         self.assertEqual(DEFINE_1, '1')
+
+        
 
 if __name__ == '__main__':
     unittest.main()

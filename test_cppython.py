@@ -54,6 +54,8 @@ class Test(unittest.TestCase):
             call.on_field('a', 'int'),
             call.on_compound_end('struct', 'S2'),
             
+            call.on_function('build_s1', 'for_test_namespace::S1', [('int', 'a'), ('const char *', 'b')]),
+            
             call.on_namespace_end('for_test_namespace'),
             call.on_const_int('CONST_3', '3'),
             call.on_file_end(),

@@ -11,7 +11,7 @@ from Cython.Build import cythonize
 HERE = os.path.dirname(__file__)
 
 setup(
-    ext_modules = cythonize(os.path.join(HERE, 'for_test_proxy.pyx')),
+    ext_modules = cythonize([os.path.join(HERE, i) for i in ('for_test_proxy.pyx', 'for_test.cpp')]),
 )
 
 if __name__ == '__main__':

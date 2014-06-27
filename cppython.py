@@ -55,6 +55,11 @@ def get_literal(cursor):
             # return ast.literal_eval(t.spelling)
             
 
+def split_namespace_name(namespace_name):
+    all = namespace_name.split('::')
+    namespaces, name = all[:-1], all[-1]
+    return name, namespaces
+
 def is_const_int(type):
     return type.is_const_qualified() and type.kind in (
         TypeKind.SHORT, TypeKind.INT, TypeKind.LONG, TypeKind.LONGLONG, TypeKind.INT128,
@@ -120,6 +125,12 @@ def apply(children, visitor):
             name = child.spelling
             visitor.on_field(name, child.type.spelling)
 
+        elif child.kind == CursorKind.FUNCTION_DECL:
+            name = child.spelling
+            return_type = child.result_type.spelling
+            parameters = [(i.type.spelling, i.spelling) for i in child.get_arguments()]
+            visitor.on_function(name, return_type, parameters)
+            
         else:
             # print child.kind, child.spelling, child.type.spelling
             pass
@@ -223,14 +234,17 @@ class PxdVisitor(BaseVisitor):
         with indent(self):
             for k, v in constants:
                 self.writeline('{} = {}', k, v)
+                # self.writeline('{}', k)
         self.content_after_begin = True
         
     def on_const_int(self, name, value):
         self.writeline('cdef enum: {} = {}', name, value)
+        # self.writeline('cdef enum: {}', name)        
         self.content_after_begin = True        
         
     def on_macro_value(self, name, value):
-        self.writeline('DEF {} = {}', name, value)
+        # Macro should not be export, otherwise will failed 
+        pass
         
     def on_compound_begin(self, kind, name):
         self.content_after_begin = False
@@ -247,6 +261,12 @@ class PxdVisitor(BaseVisitor):
     def on_field(self, name, typename):
         self.writeline('{} {}', typename, name)
         self.content_after_begin = True
+        
+        
+    def on_function(self, name, return_type, parameters):
+        parameters_list = ', '.join('{} {}'.format(typename, parameter_name) for (typename, parameter_name) in parameters)
+        return_name, namespaces = split_namespace_name(return_type)
+        self.writeline('cdef {} {}({})', return_name, name, parameters_list)
         
         
 class PyxVisitor(BaseVisitor):
@@ -289,7 +309,7 @@ class PyxVisitor(BaseVisitor):
         self.writeline('{} = {}.{}', name, self.import_name, name)
         
     def on_macro_value(self, name, value):
-        self.writeline('{} = {}.{}', name, self.import_name, name)
+        self.writeline('{} = {}', name, value)
         
     def on_compound_begin(self, kind, name):
         pass
@@ -300,6 +320,8 @@ class PyxVisitor(BaseVisitor):
     def on_field(self, name, typename):
         pass
         
+    def on_function(self, name, return_type, parameters):
+        pass
         
 if __name__ == '__main__':
     pass

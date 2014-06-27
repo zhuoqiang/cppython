@@ -43,6 +43,7 @@ namespace for_test_namespace {
         int a;
     } S2;
 
+    S1 build_s1(int a, char const* b);
 }
 
 const long long CONST_3 = 3;
