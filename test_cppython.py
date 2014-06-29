@@ -45,16 +45,17 @@ class Test(unittest.TestCase):
             call.on_namespace_begin('bar'),            
             call.on_namespace_end('bar'), 
             
-            call.on_compound_begin('struct', 'S1'),
+            call.on_pod_begin('cdef struct', 'S1'),
             call.on_field('a', 'int'),
             call.on_field('b', 'CharsType'),
-            call.on_compound_end('struct', 'S1'),
+            call.on_pod_end('cdef struct', 'S1'),
             
-            call.on_compound_begin('struct', 'S2'),
+            call.on_pod_begin('ctypedef struct', 'S2'),
             call.on_field('a', 'int'),
-            call.on_compound_end('struct', 'S2'),
+            call.on_pod_end('ctypedef struct', 'S2'),
             
             call.on_function('build_s1', 'for_test_namespace::S1', [('int', 'a'), ('const char *', 'b')]),
+            call.on_function('use_s1', 'void', [('for_test_namespace::S1 &', 's1')]),
             
             call.on_namespace_end('for_test_namespace'),
             call.on_const_int('CONST_3', '3'),

@@ -31,7 +31,7 @@ namespace for_test_namespace {
 
 
     namespace bar {
-        int n = 3; // will be skipped
+        static int n = 3; // will be skipped
     }
 
     struct S1 {
@@ -44,6 +44,8 @@ namespace for_test_namespace {
     } S2;
 
     S1 build_s1(int a, char const* b);
+
+    void use_s1(S1& s1);
 }
 
 const long long CONST_3 = 3;

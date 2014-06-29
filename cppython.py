@@ -6,13 +6,14 @@
 
 import sys
 import os
-import clang
+import re
 import datetime
 import ast
 from datetime import datetime
 from contextlib import contextmanager
-        
+
 from clang.cindex import *
+import clang
 
 __author__ = 'ZHUO Qiang'
 __date__ = '2014-06-23 21:45'
@@ -58,6 +59,7 @@ def get_literal(cursor):
 def split_namespace_name(namespace_name):
     all = namespace_name.split('::')
     namespaces, name = all[:-1], all[-1]
+    name = name.replace(' &', '')
     return name, namespaces
 
 def is_const_int(type):
@@ -108,18 +110,25 @@ def apply(children, visitor):
             if not name.startswith('_') and name not in ('OBJC_NEW_PROPERTIES',):
                 visitor.on_macro_value(name, get_literal(child))
 
-        elif child.kind == CursorKind.STRUCT_DECL:
+        elif child.kind in (CursorKind.STRUCT_DECL, CursorKind.CLASS_DECL):
             name = child.spelling
+            typedef = 'cdef '
             if not name:
                 name = get_compound_typedef_name('struct', next_child)
                 if name:
+                    typedef = 'ctypedef '
                     next(lookahead_children) # discard typedef
+                    pass
                 else:
                     continue # discard struct with no name
                 
-            visitor.on_compound_begin('struct', name)
-            apply(child.get_children(), visitor)
-            visitor.on_compound_end('struct', name)
+            if child.type.is_pod():
+                visitor.on_pod_begin('{}struct'.format(typedef), name)
+                apply(child.get_children(), visitor)
+                visitor.on_pod_end('{}struct'.format(typedef), name)
+            else:
+                # TOOD
+                pass
 
         elif child.kind == CursorKind.FIELD_DECL:
             name = child.spelling
@@ -163,6 +172,7 @@ class BaseVisitor(object):
         self.directory = directory
         self.indent_level = 0
         self.file = None
+        self.content_after_begin = False        
         
     def writeline(self, line='', *l, **kw):
         self.file.write(''.join((self.indent_level*self.INDENT, line.format(*l, **kw), '\n')))
@@ -201,7 +211,7 @@ class PxdVisitor(BaseVisitor):
         self.file = open(generate_file_name(self.directory, filename, '.pxd'), 'w')
         self.header_file_path = os.path.relpath(filename, self.directory)
         
-        self.writeline('cdef extern from "{}":', self.header_file_path)
+        self.writeline('cdef extern from "{}" nogil:', self.header_file_path)
         self.reset_indent(1)
         self.content_after_begin = False        
         
@@ -212,7 +222,7 @@ class PxdVisitor(BaseVisitor):
         
     def on_namespace_begin(self, namespace):
         self.namespaces.append(namespace)
-        self.writeline('cdef extern from "{}" namespace "{}":',
+        self.writeline('cdef extern from "{}" namespace "{}" nogil:',
                        self.header_file_path, '::'.join(self.namespaces))
         self.reset_indent(1)
         self.content_after_begin = False
@@ -246,13 +256,13 @@ class PxdVisitor(BaseVisitor):
         # Macro should not be export, otherwise will failed 
         pass
         
-    def on_compound_begin(self, kind, name):
+    def on_pod_begin(self, kind, name):
         self.content_after_begin = False
         self.writeline()
-        self.writeline('cdef {} {}:', kind, name)
+        self.writeline('{} {}:', kind, name)
         self.reset_indent(1)
         
-    def on_compound_end(self, kind, name):
+    def on_pod_end(self, kind, name):
         if not self.content_after_begin:
             self.writeline('pass')
         self.reset_indent(-1)
@@ -264,9 +274,10 @@ class PxdVisitor(BaseVisitor):
         
         
     def on_function(self, name, return_type, parameters):
-        parameters_list = ', '.join('{} {}'.format(typename, parameter_name) for (typename, parameter_name) in parameters)
+        # parameters_list = ', '.join('{} {}'.format(t, n) for (t, n) in parameters)
+        parameters_list = ', '.join('{} {}'.format(split_namespace_name(t)[0], n) for (t, n) in parameters)        
         return_name, namespaces = split_namespace_name(return_type)
-        self.writeline('cdef {} {}({})', return_name, name, parameters_list)
+        self.writeline('cdef {} {}({}) nogil', return_name, name, parameters_list)
         
         
 class PyxVisitor(BaseVisitor):
@@ -275,6 +286,8 @@ class PyxVisitor(BaseVisitor):
     
     def __init__(self, directory='.', time=None):
         super(PyxVisitor, self).__init__(directory, time)
+        self.types = {}
+        self.pod_types = set()
         
     def on_file_begin(self, filename):
         # TODO Add file header
@@ -283,6 +296,7 @@ class PyxVisitor(BaseVisitor):
         
         self.writeline('# distutils: language = c++')
         self.writeline('cimport {}', self.import_name)
+        self.writeline('cimport libc.string')        
         self.writeline('import enum # for python 2.x install enum34 package')
         self.writeline()
         
@@ -296,7 +310,7 @@ class PyxVisitor(BaseVisitor):
         pass
         
     def on_typedef(self, name, typename):
-        pass
+        self.types[name] = typename
         
     def on_enum(self, name, constants):
         self.writeline()
@@ -311,17 +325,65 @@ class PyxVisitor(BaseVisitor):
     def on_macro_value(self, name, value):
         self.writeline('{} = {}', name, value)
         
-    def on_compound_begin(self, kind, name):
+    def on_pod_begin(self, kind, name):
+        self.pod_types.add(name)
+        self.writeline('cdef class {}:', name)
+        self.reset_indent(1)
+        self.writeline('cdef {}.{} _this', self.import_name, name)
+        self.writeline('cdef _from_c_(self, {}.{} c_value):', self.import_name, name)
+        with indent(self):
+            self.writeline('self._this = c_value')
+            self.writeline('return self')            
+            
+    def on_pod_end(self, kind, name):
+        self.reset_indent(-1)
         pass
         
-    def on_compound_end(self, kind, name):
-        pass
+    def is_char_array(self, typename):
+        return re.match(r'char \[\d+\]', self.types.get(typename, typename)) is not None
         
     def on_field(self, name, typename):
-        pass
+        self.writeline('property {}:', name)
+        with indent(self):
+            if self.is_char_array(typename):
+                self.writeline('def __get__(self):')
+                with indent(self):
+                    self.writeline('return bytes(self._this.{})[:sizeof(self._this.{})]', name, name)
+                self.writeline('def __set__(self, value):')
+                with indent(self):
+                    self.writeline('cdef int length = min(sizeof(self._this.{}), len(value))', name)
+                    self.writeline('libc.string.memcpy(self._this.{}, <char*>(value), length)',name)
+            else:
+                self.writeline('def __get__(self):')
+                with indent(self):
+                    self.writeline('return self._this.{}', name)
+                self.writeline('def __set__(self, value):')
+                with indent(self):
+                    self.writeline('self._this.{} = value', name)
         
+                    
+    def get_use_format(self, typename, name):
+        if typename in self.pod_types:
+            return '{}._this'.format(name)
+        return name
+                    
     def on_function(self, name, return_type, parameters):
-        pass
+        # remove namespace and reference
+        parameters = [(split_namespace_name(t)[0], n) for (t, n) in parameters]
+        parameters_list = ', '.join('{} {}'.format(t, n) for (t, n) in parameters)
+        parameters_names = ', '.join(self.get_use_format(t, n) for (t, n) in parameters)
+        return_name, namespaces = split_namespace_name(return_type)
+        self.writeline('cpdef {}({}):', name, parameters_list)
         
+        with indent(self):
+            if return_name in self.pod_types:
+                self.writeline('return {}()._from_c_({}.{}({}))', return_name, self.import_name, name, parameters_names)
+            else:
+                return_ = 'return '
+                if return_name == 'void':
+                    return_= ''
+                self.writeline('{}{}.{}({})', return_, self.import_name, name, parameters_names)                
+        
+            
 if __name__ == '__main__':
     pass
