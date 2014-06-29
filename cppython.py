@@ -111,28 +111,30 @@ def apply(children, visitor):
                 visitor.on_macro_value(name, get_literal(child))
 
         elif child.kind in (CursorKind.STRUCT_DECL, CursorKind.CLASS_DECL):
+            compound_name = 'struct' if child.kind == CursorKind.STRUCT_DECL else 'class'
             name = child.spelling
-            typedef = 'cdef '
+            typedef = False
             if not name:
-                name = get_compound_typedef_name('struct', next_child)
+                name = get_compound_typedef_name(compound_name, next_child)
                 if name:
-                    typedef = 'ctypedef '
-                    next(lookahead_children) # discard typedef
-                    pass
+                    typedef = True
+                    next(lookahead_children)
                 else:
                     continue # discard struct with no name
                 
             if child.type.is_pod():
-                visitor.on_pod_begin('{}struct'.format(typedef), name)
+                visitor.on_pod_begin(compound_name, name, typedef)
                 apply(child.get_children(), visitor)
-                visitor.on_pod_end('{}struct'.format(typedef), name)
+                visitor.on_pod_end(name)
             else:
-                # TOOD
-                pass
+                visitor.on_class_begin(compound_name, name, typedef)
+                apply(child.get_children(), visitor)
+                visitor.on_class_end(name)
 
         elif child.kind == CursorKind.FIELD_DECL:
-            name = child.spelling
-            visitor.on_field(name, child.type.spelling)
+            if child.access_specifier.name == 'PUBLIC':
+                name = child.spelling
+                visitor.on_field(name, child.type.spelling)
 
         elif child.kind == CursorKind.FUNCTION_DECL:
             name = child.spelling
@@ -256,17 +258,24 @@ class PxdVisitor(BaseVisitor):
         # Macro should not be export, otherwise will failed 
         pass
         
-    def on_pod_begin(self, kind, name):
+    def on_pod_begin(self, kind, name, typedef):
         self.content_after_begin = False
         self.writeline()
-        self.writeline('{} {}:', kind, name)
+        define = 'ctypedef' if typedef else 'cdef'
+        self.writeline('{} {} {}:', define, kind, name)
         self.reset_indent(1)
         
-    def on_pod_end(self, kind, name):
+    def on_pod_end(self, name):
         if not self.content_after_begin:
             self.writeline('pass')
         self.reset_indent(-1)
         self.content_after_begin = True        
+        
+    def on_class_begin(self, kind, name, typedef):
+        pass
+        
+    def on_class_end(self, name):
+        pass
         
     def on_field(self, name, typename):
         self.writeline('{} {}', typename, name)
@@ -296,7 +305,8 @@ class PyxVisitor(BaseVisitor):
         
         self.writeline('# distutils: language = c++')
         self.writeline('cimport {}', self.import_name)
-        self.writeline('cimport libc.string')        
+        self.writeline('cimport libc.string')
+        self.writeline('from cython cimport view')
         self.writeline('import enum # for python 2.x install enum34 package')
         self.writeline()
         
@@ -325,7 +335,7 @@ class PyxVisitor(BaseVisitor):
     def on_macro_value(self, name, value):
         self.writeline('{} = {}', name, value)
         
-    def on_pod_begin(self, kind, name):
+    def on_pod_begin(self, kind, name, typedef):
         self.pod_types.add(name)
         self.writeline('cdef class {}:', name)
         self.reset_indent(1)
@@ -335,9 +345,16 @@ class PyxVisitor(BaseVisitor):
             self.writeline('self._this = c_value')
             self.writeline('return self')            
             
-    def on_pod_end(self, kind, name):
+    def on_pod_end(self, name):
         self.reset_indent(-1)
         pass
+        
+    def on_class_begin(self, kind, name, typedef):
+        pass
+        
+    def on_class_end(self, name):
+        pass
+        
         
     def is_char_array(self, typename):
         return re.match(r'char \[\d+\]', self.types.get(typename, typename)) is not None
@@ -348,7 +365,7 @@ class PyxVisitor(BaseVisitor):
             if self.is_char_array(typename):
                 self.writeline('def __get__(self):')
                 with indent(self):
-                    self.writeline('return bytes(self._this.{})[:sizeof(self._this.{})]', name, name)
+                    self.writeline('return <char[:sizeof(self._this.{})]>(<const char*>self._this.{})', name, name)
                 self.writeline('def __set__(self, value):')
                 with indent(self):
                     self.writeline('cdef int length = min(sizeof(self._this.{}), len(value))', name)

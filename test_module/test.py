@@ -36,6 +36,9 @@ class Test(unittest.TestCase):
 
         s1.b = "123456789"
         self.assertEqual(s1.b, "1234567")        
+        self.assertEqual(s1.b[0], "1")        
+        # s1.b[0] = 'a'
+        # self.assertEqual(s1.b[0], "a")        
 
         use_s1(s1)
         self.assertEqual(s1.a, 1024)

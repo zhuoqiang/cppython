@@ -16,4 +16,9 @@ namespace for_test_namespace {
         std::cout << s1.a << s1.b << std::endl;
         s1.a = 1024;
     }
+
+    int C1::f()
+    {
+        return 1 + _c2->get();
+    }
 }
