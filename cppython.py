@@ -637,7 +637,9 @@ private:
         pass
         
     def on_method(self, name, return_type, parameters, access, method_type):        
-        pass
+        if method_type in ('pure', 'virtual'):
+            parameters_list = ', '.join('{} {}'.format(t, n) for (t, n) in parameters)
+            self.writeline('{} {}({});', return_type, name, parameters_list)
         
     def on_function(self, name, return_type, parameters):
         pass
@@ -721,7 +723,13 @@ CppythonProxyBase::~CppythonProxyBase()
         pass
         
     def on_method(self, name, return_type, parameters, access, method_type):        
-        pass
+        if method_type in ('pure', 'virtual'):
+            parameters_list = ', '.join('{} {}'.format(t, n) for (t, n) in parameters)
+            self.writeline('{} {}::{}({})', return_type, self.class_name, name, parameters_list)
+            self.writeline('{{')
+            # TODO change implementation
+            self.writeline('    return 0;')
+            self.writeline('}}')
         
     def on_function(self, name, return_type, parameters):
         pass
