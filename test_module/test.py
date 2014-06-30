@@ -29,7 +29,6 @@ class Test(unittest.TestCase):
         self.assertEqual(CONST_2, 10)
         self.assertEqual(DEFINE_1, '1')
 
-        # self.assertEqual(build_s1(1, "ab"), (1, "ab"))
         s1 = build_s1(1, "ab")
         self.assertEqual(s1.a, 1)        
         self.assertEqual(s1.b, "ab")
@@ -37,8 +36,6 @@ class Test(unittest.TestCase):
         s1.b = "123456789"
         self.assertEqual(s1.b, "1234567")        
         self.assertEqual(s1.b[0], "1")        
-        # s1.b[0] = 'a'
-        # self.assertEqual(s1.b[0], "a")        
 
         use_s1(s1)
         self.assertEqual(s1.a, 1024)

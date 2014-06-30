@@ -13,23 +13,19 @@ from Cython.Build import cythonize
 HERE = os.path.dirname(__file__)
 
 
-# setup(
-#     ext_modules = cythonize(
-#         os.path.join(HERE, 'for_test_proxy.pyx'),
-#     ),    
-# )
+extensions = [
+    Extension(
+        "for_test_proxy",
+        sources = ["for_test_proxy.pyx", 'for_test.cpp'],
+        include_dirs = [],
+        libraries = [],
+        library_dirs = []),
+]
 
 
 setup(
-    cmdclass = {'build_ext': build_ext},
-    ext_modules = [
-        Extension("foo_test_proxy",
-                  sources=[
-                      "for_test_proxy.pyx",
-                      "for_test.cpp"],
-                  language='c++')]
+    ext_modules = cythonize(extensions),
 )
-
 
 if __name__ == '__main__':
     pass

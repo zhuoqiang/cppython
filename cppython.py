@@ -306,7 +306,7 @@ class PyxVisitor(BaseVisitor):
         self.writeline('# distutils: language = c++')
         self.writeline('cimport {}', self.import_name)
         self.writeline('cimport libc.string')
-        self.writeline('from cython cimport view')
+        # self.writeline('from cython cimport view')
         self.writeline('import enum # for python 2.x install enum34 package')
         self.writeline()
         
@@ -365,7 +365,7 @@ class PyxVisitor(BaseVisitor):
             if self.is_char_array(typename):
                 self.writeline('def __get__(self):')
                 with indent(self):
-                    self.writeline('return <char[:sizeof(self._this.{})]>(<const char*>self._this.{})', name, name)
+                    self.writeline('return bytes(self._this.{})[:sizeof(self._this.{})]', name, name)
                 self.writeline('def __set__(self, value):')
                 with indent(self):
                     self.writeline('cdef int length = min(sizeof(self._this.{}), len(value))', name)
