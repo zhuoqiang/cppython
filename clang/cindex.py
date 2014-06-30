@@ -1137,6 +1137,18 @@ class Cursor(Structure):
         """
         return conf.lib.clang_CXXMethod_isStatic(self)
 
+    def is_pure_virtual_method(self):
+        """Returns True if the cursor refers to a C++ member function or member
+        function template that is declared 'pure virtual'.
+        """
+        return conf.lib.clang_CXXMethod_isPureVirtual(self)
+        
+    def is_virtual_method(self):
+        """Returns True if the cursor refers to a C++ member function or member
+        function template that is declared 'virtual'.
+        """
+        return conf.lib.clang_CXXMethod_isVirtual(self)
+        
     def get_definition(self):
         """
         If the cursor is a reference to a declaration or a declaration of

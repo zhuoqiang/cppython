@@ -58,11 +58,13 @@ class Test(unittest.TestCase):
             call.on_function('use_s1', 'void', [('for_test_namespace::S1 &', 's1')]),
             
             call.on_class_begin('class', 'C2', False),
+            call.on_method('get', 'int', [], 'public', 'pure'),
+            call.on_method('s', 'int', [], 'public', 'static'),
             call.on_class_end('C2'),
+            
             call.on_class_begin('class', 'C1', False),
+            call.on_method('f', 'int', [], 'public', 'virtual'),
             call.on_class_end('C1'),
-            call.on_class_begin('class', 'C2', False),
-            call.on_class_end('C2'),
             
             call.on_namespace_end('for_test_namespace'),
             call.on_const_int('CONST_3', '3'),
@@ -72,7 +74,7 @@ class Test(unittest.TestCase):
         
     def test_apply_visitor(self):
         directory = 'test_module'
-        v = VisitorGroup(v(directory) for v in (PxdVisitor, PyxVisitor, CppVisitor, HppVisitor, PxiVisitor))
+        v = VisitorGroup(v(directory) for v in (PxdVisitor, PyxVisitor, CppVisitor, HppVisitor, PxiVisitor, PxdProxyVisitor))
         apply([self.tu.cursor], v)
 
         

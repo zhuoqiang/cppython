@@ -36,6 +36,10 @@ def parse_cpp_file(file_path, include_paths=None):
     return tu
 
     
+def get_proxy_name(name):
+    return name + '_proxy'
+    
+    
 def pairwise(iterable):
     iterable = iter(iterable)
     last = next(iterable)
@@ -132,10 +136,25 @@ def apply(children, visitor):
                 visitor.on_class_end(name)
 
         elif child.kind == CursorKind.FIELD_DECL:
-            if child.access_specifier.name == 'PUBLIC':
+            if child.access_specifier.name != 'PRIVATE':
                 name = child.spelling
                 visitor.on_field(name, child.type.spelling)
 
+        elif child.kind == CursorKind.CXX_METHOD:
+            if child.access_specifier.name != 'PRIVATE':
+                name = child.spelling
+                access = child.access_specifier.name.lower()
+                return_type = child.result_type.spelling
+                parameters = [(i.type.spelling, i.spelling) for i in child.get_arguments()]
+                method_type = ''
+                if child.is_static_method():
+                    method_type = 'static'
+                elif child.is_pure_virtual_method():
+                    method_type = 'pure'
+                elif child.is_virtual_method():
+                    method_type = 'virtual'
+                visitor.on_method(name, return_type, parameters, access, method_type)
+                
         elif child.kind == CursorKind.FUNCTION_DECL:
             name = child.spelling
             return_type = child.result_type.spelling
@@ -143,7 +162,7 @@ def apply(children, visitor):
             visitor.on_function(name, return_type, parameters)
             
         else:
-            # print child.kind, child.spelling, child.type.spelling
+            print child.kind, child.spelling, child.type.spelling
             pass
         
     
@@ -206,6 +225,7 @@ class PxdVisitor(BaseVisitor):
         super(PxdVisitor, self).__init__(directory, time)
         self.namespaces = []
         self.content_after_begin = False
+        self.class_name = None
         
     def on_file_begin(self, filename):
         # TODO Add file header
@@ -213,9 +233,11 @@ class PxdVisitor(BaseVisitor):
         self.file = open(generate_file_name(self.directory, filename, '.pxd'), 'w')
         self.header_file_path = os.path.relpath(filename, self.directory)
         
+        self.writeline('from libcpp cimport bool')
+        self.writeline('from cpython.ref cimport PyObject')
         self.writeline('cdef extern from "{}" nogil:', self.header_file_path)
         self.reset_indent(1)
-        self.content_after_begin = False        
+        self.content_after_begin = False
         
     def on_file_end(self):
         if not self.content_after_begin:
@@ -272,21 +294,102 @@ class PxdVisitor(BaseVisitor):
         self.content_after_begin = True        
         
     def on_class_begin(self, kind, name, typedef):
-        pass
+        self.class_name = name
+        self.writeline('cdef cppclass {}:', name)
+        with indent(self):
+            self.writeline('pass')        
         
     def on_class_end(self, name):
-        pass
+        self.class_name = None
         
     def on_field(self, name, typename):
         self.writeline('{} {}', typename, name)
         self.content_after_begin = True
         
+    def on_method(self, name, return_type, parameters, access, method_type):        
+        pass
         
     def on_function(self, name, return_type, parameters):
         # parameters_list = ', '.join('{} {}'.format(t, n) for (t, n) in parameters)
         parameters_list = ', '.join('{} {}'.format(split_namespace_name(t)[0], n) for (t, n) in parameters)        
         return_name, namespaces = split_namespace_name(return_type)
         self.writeline('cdef {} {}({}) nogil', return_name, name, parameters_list)
+        
+        
+class PxdProxyVisitor(BaseVisitor):
+    '''Generate pxd file exporting C++ proxy header declaration in cython
+    '''
+    
+    def __init__(self, directory='.', time=None):
+        super(PxdProxyVisitor, self).__init__(directory, time)
+        self.namespaces = []
+        self.content_after_begin = False
+        self.class_name = None
+        
+    def on_file_begin(self, filename):
+        # TODO Add file header
+        
+        self.file = open(generate_file_name(self.directory, filename, '_cppython.pxd'), 'w')
+        header_file = generate_file_name(self.directory, filename, '_cppython.hpp')
+        self.header_file_path = os.path.relpath(header_file, self.directory)
+        
+        self.writeline('from libcpp cimport bool')
+        self.writeline('from cpython.ref cimport PyObject')
+        self.writeline('cdef extern from "{}" nogil:', self.header_file_path)
+        self.reset_indent(1)
+        self.content_after_begin = False
+        
+    def on_file_end(self):
+        if not self.content_after_begin:
+            self.writeline('pass')
+        self.file.close()
+        
+    def on_namespace_begin(self, namespace):
+        pass
+        
+    def on_namespace_end(self, namespace):
+        pass
+        
+    def on_typedef(self, name, typename):
+        pass
+        
+    def on_enum(self, name, constants):
+        pass
+        
+    def on_const_int(self, name, value):
+        pass
+        
+    def on_macro_value(self, name, value):
+        pass
+        
+    def on_pod_begin(self, kind, name, typedef):
+        pass
+        
+    def on_pod_end(self, name):
+        pass
+        
+    def on_class_begin(self, kind, name, typedef):
+        self.class_name = get_proxy_name(name)
+        self.writeline('cdef cppclass {}:', self.class_name)
+        self.reset_indent(1)
+        self.writeline('{}(PyObject* self_object)', self.class_name)
+        
+    def on_class_end(self, name):
+        self.class_name = None
+        self.reset_indent(-1)
+        
+    def on_field(self, name, typename):
+        pass
+        
+    def on_method(self, name, return_type, parameters, access, method_type):        
+        parameters = [(split_namespace_name(t)[0], n) for (t, n) in parameters]
+        parameters_list = ', '.join('{} {}'.format(t, n) for (t, n) in parameters)
+        return_name, namespaces = split_namespace_name(return_type)
+        
+        self.writeline('{} {}({})', return_name, name, parameters_list)
+        
+    def on_function(self, name, return_type, parameters):
+        pass
         
         
 class PyxVisitor(BaseVisitor):
@@ -302,10 +405,15 @@ class PyxVisitor(BaseVisitor):
         # TODO Add file header
         self.file = open(generate_file_name(self.directory, filename, '_proxy.pyx'), 'w')
         self.import_name = os.path.splitext(os.path.basename(filename))[0]
+        self.import_proxy_name = self.import_name + '_cppython'
         
         self.writeline('# distutils: language = c++')
         self.writeline('cimport {}', self.import_name)
+        self.writeline('cimport {}', self.import_proxy_name)        
         self.writeline('cimport libc.string')
+        self.writeline('from libcpp cimport bool')
+        self.writeline('from cpython.ref cimport PyObject')
+
         # self.writeline('from cython cimport view')
         self.writeline('import enum # for python 2.x install enum34 package')
         self.writeline()
@@ -348,14 +456,26 @@ class PyxVisitor(BaseVisitor):
             
     def on_pod_end(self, name):
         self.reset_indent(-1)
-        pass
+        
         
     def on_class_begin(self, kind, name, typedef):
-        pass
+        self.writeline('cdef class {}:', name)
+        self.reset_indent(1)
         
+        proxy_name = name + '_proxy'
+        self.writeline('cdef {}.{}* _this', self.import_proxy_name, proxy_name)
+        self.writeline()
+        self.writeline('def __cinit__(self):')
+        with indent(self):
+            self.writeline('self._this = new {}.{}(<PyObject*>self)', self.import_proxy_name, proxy_name)
+            
+        self.writeline('def __dealloc__(self):')
+        with indent(self):
+            self.writeline('del self._this')
+            
     def on_class_end(self, name):
-        pass
-        
+        self.writeline('pass')
+        self.reset_indent(-1)
         
     def is_char_array(self, typename):
         return re.match(r'char \[\d+\]', self.types.get(typename, typename)) is not None
@@ -380,6 +500,23 @@ class PyxVisitor(BaseVisitor):
                     self.writeline('self._this.{} = value', name)
         
                     
+    def on_method(self, name, return_type, parameters, access, method_type):        
+        # remove namespace and reference
+        parameters = [(split_namespace_name(t)[0], n) for (t, n) in parameters]
+        parameters_list = 'self, ' + ', '.join('{} {}'.format(t, n) for (t, n) in parameters)
+        parameters_names = ', '.join(self.get_use_format(t, n) for (t, n) in parameters)
+        return_name, namespaces = split_namespace_name(return_type)
+            
+        self.writeline('def {}({}):', name, parameters_list)
+        with indent(self):
+            if return_name in self.pod_types:
+                self.writeline('return {}()._from_c_(self._this..{}({}))', return_name, name, parameters_names)
+            else:
+                return_ = 'return '
+                if return_name == 'void':
+                    return_= ''
+                self.writeline('{}self._this.{}({})', return_, name, parameters_names)                
+        
     def get_use_format(self, typename, name):
         if typename in self.pod_types:
             return '{}._this'.format(name)
@@ -444,9 +581,11 @@ protected:
 private:
     PyObject* const self_;
 };
+
 ''')
         
     def on_file_end(self):
+        self.writeline('')
         self.writeline('#endif//{}', self.header_guard)
         self.file.close()
         
@@ -475,12 +614,29 @@ private:
         pass
         
     def on_class_begin(self, kind, name, typedef):
-        self.class_name = name + '_cppython'
+        self.class_name = get_proxy_name(name)
+        self.writeline('class {} : public {}, public CppythonProxyBase',
+                       self.class_name, '::'+'::'.join(self.namespaces+[name]))
+        self.writeline('{{')
+        self.writeline('public:')
+        self.reset_indent(1)
+        
+        self.writeline('{}(PyObject* object)', self.class_name)
+        self.writeline('    : CppythonProxyBase(object)')
+        self.writeline('{{')
+        self.writeline('}}')        
+        self.writeline()
         
     def on_class_end(self, name):
+        self.reset_indent(-1)
+        self.writeline('}};')
+        self.writeline()
         self.class_name = None
         
     def on_field(self, name, typename):
+        pass
+        
+    def on_method(self, name, return_type, parameters, access, method_type):        
         pass
         
     def on_function(self, name, return_type, parameters):
@@ -556,12 +712,15 @@ CppythonProxyBase::~CppythonProxyBase()
         pass
         
     def on_class_begin(self, kind, name, typedef):
-        self.class_name = name + '_cppython'
+        self.class_name = get_proxy_name(name)
         
     def on_class_end(self, name):
         self.class_name = None
         
     def on_field(self, name, typename):
+        pass
+        
+    def on_method(self, name, return_type, parameters, access, method_type):        
         pass
         
     def on_function(self, name, return_type, parameters):
@@ -616,6 +775,9 @@ class PxiVisitor(BaseVisitor):
         self.class_name = None
         
     def on_field(self, name, typename):
+        pass
+        
+    def on_method(self, name, return_type, parameters, access, method_type):        
         pass
         
     def on_function(self, name, return_type, parameters):
