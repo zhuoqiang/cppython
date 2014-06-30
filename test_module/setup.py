@@ -16,7 +16,7 @@ HERE = os.path.dirname(__file__)
 extensions = [
     Extension(
         "for_test_proxy",
-        sources = ["for_test_proxy.pyx", 'for_test.cpp'],
+        sources = ["for_test_proxy.pyx", 'for_test.cpp', 'for_test_cppython.cpp'],
         include_dirs = [],
         libraries = [],
         library_dirs = []),

@@ -311,6 +311,7 @@ class PyxVisitor(BaseVisitor):
         self.writeline()
         
     def on_file_end(self):
+        self.writeline('cdef public api void _cppython_(): pass ')
         self.file.close()
         
     def on_namespace_begin(self, namespace):
@@ -402,5 +403,171 @@ class PyxVisitor(BaseVisitor):
                 self.writeline('{}{}.{}({})', return_, self.import_name, name, parameters_names)                
         
             
+
+class HppVisitor(BaseVisitor):
+    '''Generate C++ header file wrapping C++ non pod classes for use in python
+    '''
+    
+    def __init__(self, directory='.', time=None):
+        super(HppVisitor, self).__init__(directory, time)
+        self.namespaces = []
+        self.class_name = None
+        
+    def on_file_begin(self, filename):
+        # TODO Add file header
+        
+        self.file = open(generate_file_name(self.directory, filename, '_cppython.hpp'), 'w')
+        self.header_file_path = os.path.relpath(filename, self.directory)
+        
+        stem = os.path.splitext(os.path.basename(filename))[0]
+        self.header_guard = '_{}_CPPYTON_HPP_'.format(stem.upper())
+        self.writeline('#ifndef {}', self.header_guard)
+        self.writeline('#define {}', self.header_guard)
+        self.writeline()        
+        self.writeline('#include "{}"', self.header_file_path)
+        self.writeline()        
+        self.file.write('''
+struct _object;
+typedef _object PyObject;
+
+class CppythonProxyBase
+{
+protected:    
+    CppythonProxyBase(PyObject* self);
+    ~CppythonProxyBase();
+    
+    PyObject* Self() const
+    {
+        return self_;
+    }
+
+private:
+    PyObject* const self_;
+};
+''')
+        
+    def on_file_end(self):
+        self.writeline('#endif//{}', self.header_guard)
+        self.file.close()
+        
+    def on_namespace_begin(self, namespace):
+        self.namespaces.append(namespace)
+        
+    def on_namespace_end(self, namespace):
+        self.namespaces.pop()
+        
+    def on_typedef(self, name, typename):
+        pass
+        
+    def on_enum(self, name, constants):
+        pass
+        
+    def on_const_int(self, name, value):
+        pass
+        
+    def on_macro_value(self, name, value):
+        pass
+        
+    def on_pod_begin(self, kind, name, typedef):
+        pass
+        
+    def on_pod_end(self, name):
+        pass
+        
+    def on_class_begin(self, kind, name, typedef):
+        self.class_name = name + '_cppython'
+        
+    def on_class_end(self, name):
+        self.class_name = None
+        
+    def on_field(self, name, typename):
+        pass
+        
+    def on_function(self, name, return_type, parameters):
+        pass
+                
+                
+                
+class CppVisitor(BaseVisitor):
+    '''Generate C++ source files wrapping C++ non pod classes for use in python
+    '''
+    
+    def __init__(self, directory='.', time=None):
+        super(CppVisitor, self).__init__(directory, time)
+        self.namespaces = []
+        self.class_name = None
+        
+    def on_file_begin(self, filename):
+        # TODO Add file header
+        
+        self.file = open(generate_file_name(self.directory, filename, '_cppython.cpp'), 'w')
+        self.header_file_path = os.path.relpath(self.file.name, self.directory).replace('.cpp', '.hpp')
+        
+        stem = os.path.basename(os.path.splitext(filename)[0])
+        self.writeline('#include "{}"', self.header_file_path)
+        self.writeline('#include "{}_proxy_api.h"', stem)        
+        self.file.write('''
+#include <Python.h>
+#include <stdexcept>
+
+CppythonProxyBase::CppythonProxyBase(PyObject* self)
+    : self_(self)
+{
+    if (self_ == NULL) {
+        throw std::runtime_error("self object is NULL");
+    }
+    if (import_%s_proxy()) {
+        throw std::runtime_error("could not import python extension module ctpy");
+    } 
+    Py_XINCREF(self_);
+}
+
+CppythonProxyBase::~CppythonProxyBase()
+{
+    Py_XDECREF(self_);
+}
+''' % stem)
+        
+    def on_file_end(self):
+        self.file.close()
+        
+    def on_namespace_begin(self, namespace):
+        self.namespaces.append(namespace)
+        
+    def on_namespace_end(self, namespace):
+        self.namespaces.pop()
+        
+    def on_typedef(self, name, typename):
+        pass
+        
+    def on_enum(self, name, constants):
+        pass
+        
+    def on_const_int(self, name, value):
+        pass
+        
+    def on_macro_value(self, name, value):
+        pass
+        
+    def on_pod_begin(self, kind, name, typedef):
+        pass
+        
+    def on_pod_end(self, name):
+        pass
+        
+    def on_class_begin(self, kind, name, typedef):
+        self.class_name = name + '_cppython'
+        
+    def on_class_end(self, name):
+        self.class_name = None
+        
+    def on_field(self, name, typename):
+        pass
+        
+    def on_function(self, name, return_type, parameters):
+        pass
+        
+        
+        
 if __name__ == '__main__':
     pass
