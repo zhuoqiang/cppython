@@ -311,7 +311,7 @@ class PyxVisitor(BaseVisitor):
         self.writeline()
         
     def on_file_end(self):
-        self.writeline('cdef public api void _cppython_(): pass ')
+        self.writeline('include "{}"', os.path.basename(self.file.name.replace('.pyx', '.pxi')))
         self.file.close()
         
     def on_namespace_begin(self, namespace):
@@ -517,7 +517,7 @@ CppythonProxyBase::CppythonProxyBase(PyObject* self)
         throw std::runtime_error("self object is NULL");
     }
     if (import_%s_proxy()) {
-        throw std::runtime_error("could not import python extension module ctpy");
+        throw std::runtime_error("could not import python extension module");
     } 
     Py_XINCREF(self_);
 }
@@ -557,6 +557,60 @@ CppythonProxyBase::~CppythonProxyBase()
         
     def on_class_begin(self, kind, name, typedef):
         self.class_name = name + '_cppython'
+        
+    def on_class_end(self, name):
+        self.class_name = None
+        
+    def on_field(self, name, typename):
+        pass
+        
+    def on_function(self, name, return_type, parameters):
+        pass
+        
+        
+class PxiVisitor(BaseVisitor):
+    '''Generate public API for wrapping C++
+    '''
+    
+    def __init__(self, directory='.', time=None):
+        super(PxiVisitor, self).__init__(directory, time)
+        self.namespaces = []
+        self.class_name = None
+        
+    def on_file_begin(self, filename):
+        # TODO Add file header
+        self.file = open(generate_file_name(self.directory, filename, '_proxy.pxi'), 'w')
+        self.writeline('cdef public api void _cppython_(): pass ')
+        
+    def on_file_end(self):
+        self.file.close()
+        
+    def on_namespace_begin(self, namespace):
+        self.namespaces.append(namespace)
+        
+    def on_namespace_end(self, namespace):
+        self.namespaces.pop()
+        
+    def on_typedef(self, name, typename):
+        pass
+        
+    def on_enum(self, name, constants):
+        pass
+        
+    def on_const_int(self, name, value):
+        pass
+        
+    def on_macro_value(self, name, value):
+        pass
+        
+    def on_pod_begin(self, kind, name, typedef):
+        pass
+        
+    def on_pod_end(self, name):
+        pass
+        
+    def on_class_begin(self, kind, name, typedef):
+        self.class_name = name
         
     def on_class_end(self, name):
         self.class_name = None
