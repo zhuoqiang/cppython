@@ -63,6 +63,8 @@ namespace for_test_namespace {
             return 4;
         }
         
+        virtual ~C2() {}
+        
     private:
         int _a;
     };
@@ -77,6 +79,8 @@ namespace for_test_namespace {
         virtual int virtual_method();
         virtual int virtual_method_call_other();
 
+        virtual ~C1() {}        
+        
     private:
         C2* _c2;
     };

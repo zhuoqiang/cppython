@@ -385,7 +385,7 @@ class PxdProxyVisitor(BaseVisitor):
     def on_class_begin(self, kind, name, typedef):
         self.class_names.add(name)
         self.class_name = get_proxy_name(name)
-        self.writeline('cdef cppclass {}:', self.class_name)
+        self.writeline('cdef cppclass {}({}.{}):', self.class_name, self.import_name, name)
         self.reset_indent(1)
         
     def on_constructor(self, name, parameters):
@@ -514,7 +514,7 @@ class PyxVisitor(BaseVisitor):
         
         self.writeline('def __init__(self, {}):', parameters_list)
         with indent(self):
-            self.writeline('self._this = new {}.{}(<PyObject*>self, {})',
+            self.writeline('self._this = new {}.{}(<PyObject*>(self), {})',
                            self.import_proxy_name, proxy_name, parameters_names)
         
     def on_class_end(self, name):
@@ -522,7 +522,7 @@ class PyxVisitor(BaseVisitor):
             proxy_name = get_proxy_name(name)            
             self.writeline('def __cinit__(self):')
             with indent(self):
-                self.writeline('self._this = new {}.{}(<PyObject*>self)',
+                self.writeline('self._this = new {}.{}(<PyObject*>(self))',
                                self.import_proxy_name, proxy_name)
             
         self.writeline('pass')
@@ -575,7 +575,8 @@ class PyxVisitor(BaseVisitor):
 
         class_name = typename.split()[0]
         if class_name in self.class_types:
-            return '<{}.{}*>({}._this)'.format(self.import_name, class_name, name)
+            # return '<{}.{}*>({}._this)'.format(self.import_name, class_name, name)
+            return '{}._this'.format(name)            
         return name
                     
         
@@ -689,7 +690,7 @@ private:
     def on_class_begin(self, kind, name, typedef):
         self.class_name = get_proxy_name(name)
         base_class_full_name = '::'+'::'.join(self.namespaces+[name])
-        self.writeline('class {} : public {}, public CppythonProxyBase',
+        self.writeline('class {} : public CppythonProxyBase, public {}',
                        self.class_name, base_class_full_name)
         self.writeline('{{')
         self.writeline('public:')
