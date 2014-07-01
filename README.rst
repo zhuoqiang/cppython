@@ -12,14 +12,16 @@ cppython: bring C++ classes to Python
 How to export C++ class  
 -------------------------
 
-To wrap a non-pod C++ class ``Foo``:
+In order to export a non-pod C++ class ``Foo`` to python:
 
-#. Export forward name ``Foo`` in a ``*.pxd`` file
-#. Make a C++ proxy class inheriting from class ``Foo`` and also links with python object
-#. Override virtual methods in proxy class to make them overrideable in python world as well
+#. Export forward name ``Foo`` in ``*.pxd`` file
+#. Create a C++ proxy class inheriting from ``Foo``. It also links with a python object
+#. Override virtual methods in proxy class to make them overrideable in python
 #. Export proxy class and its methods in *.pxd file
-#. Wrapper Foo proxy class in *.pyx file as a normal Cython class
-#. Implement proxy call api for each of the proxy class's virtual methods
+#. Wrap Foo proxy class in *.pyx file as a normal Cython class
+#. Implement proxy call API for each of virtual methods
+
+The steps are tedious and boring. ``cppython`` helps you automation the whole process
 
 Files generated   
 ------------------
@@ -35,6 +37,23 @@ cppython will generate following files:
 * ``foo_cppython.pxd``: export C++ proxy class to cython
 * ``setup.py``: setup file for build python extension
 
+
+How to use
+-------------
+
+#. write a header file which include all the symbols you would like to export, including
+   
+   - classes
+   - POD structs
+   - free functions
+   - const int
+   - enums
+   - marco constants
+
+#. run command ``python cppython.py the-header-files-for-export.hpp <additional c++ source files> path/to/module_name``
+#. after that you could find generated ``module_name`` files under ``path/to``. you could review and modify manually
+#. run command ``cd path/to && python setup.py`` to actually build the python extension module using cython
+  
 todo
 -----------
 
