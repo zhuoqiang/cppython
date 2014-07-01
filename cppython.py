@@ -190,10 +190,11 @@ def generate_file_name(directory, base_file_name, extension):
     
 class BaseVisitor(object):
     INDENT = '    '        
-    def __init__(self, directory='.', time=None):
+    def __init__(self, name, directory, time=None):
         if time is None:
             time = datetime.now()
 
+        self.name = name
         self.time = time
         self.directory = directory
         self.indent_level = 0
@@ -226,8 +227,8 @@ class PxdVisitor(BaseVisitor):
     '''Generate pxd file exporting C++ header declaration in cython
     '''
     
-    def __init__(self, directory='.', time=None):
-        super(PxdVisitor, self).__init__(directory, time)
+    def __init__(self, name, directory='.', time=None):
+        super(PxdVisitor, self).__init__(name, directory, time)
         self.namespaces = []
         self.content_after_begin = False
         self.class_name = None
@@ -330,8 +331,8 @@ class PxdProxyVisitor(BaseVisitor):
     '''Generate pxd file exporting C++ proxy header declaration in cython
     '''
     
-    def __init__(self, directory='.', time=None):
-        super(PxdProxyVisitor, self).__init__(directory, time)
+    def __init__(self, name, directory='.', time=None):
+        super(PxdProxyVisitor, self).__init__(name, directory, time)
         self.namespaces = []
         self.content_after_begin = False
         self.class_name = None
@@ -341,9 +342,8 @@ class PxdProxyVisitor(BaseVisitor):
     def on_file_begin(self, filename):
         # TODO Add file header
         
-        self.file = open(generate_file_name(self.directory, filename, '_cppython.pxd'), 'w')
-        header_file = generate_file_name(self.directory, filename, '_cppython.hpp')
-        self.header_file_path = os.path.relpath(header_file, self.directory)
+        self.file = open(os.path.join(self.directory, self.name+'_cppython.pxd'), 'w')
+        self.header_file_path = self.name+'_cppython.hpp'
         self.import_name = os.path.basename(os.path.splitext(filename)[0])
         
         self.writeline('from libcpp cimport bool')
@@ -427,8 +427,8 @@ class PyxVisitor(BaseVisitor):
     '''Generate pyx file wrappering C++ entieis in cython
     '''
     
-    def __init__(self, directory='.', time=None):
-        super(PyxVisitor, self).__init__(directory, time)
+    def __init__(self, name, directory='.', time=None):
+        super(PyxVisitor, self).__init__(name, directory, time)
         self.types = {}
         self.pod_types = set()
         self.class_types = set()
@@ -436,13 +436,13 @@ class PyxVisitor(BaseVisitor):
         
     def on_file_begin(self, filename):
         # TODO Add file header
-        self.file = open(generate_file_name(self.directory, filename, '_proxy.pyx'), 'w')
+        self.file = open(os.path.join(self.directory, self.name+'.pyx'), 'w')
         self.import_name = os.path.splitext(os.path.basename(filename))[0]
-        self.import_proxy_name = self.import_name + '_cppython'
+        self.import_proxy_name = self.name + '_cppython'
         
         self.writeline('# distutils: language = c++')
         self.writeline('cimport {}', self.import_name)
-        self.writeline('cimport {}', self.import_proxy_name)        
+        self.writeline('cimport {}', self.import_proxy_name)
         self.writeline('cimport libc.string')
         self.writeline('from libcpp cimport bool')
         self.writeline('from cpython.ref cimport PyObject')
@@ -618,8 +618,8 @@ class HppVisitor(BaseVisitor):
     '''Generate C++ header file wrapping C++ non pod classes for use in python
     '''
     
-    def __init__(self, directory='.', time=None):
-        super(HppVisitor, self).__init__(directory, time)
+    def __init__(self, name, directory='.', time=None):
+        super(HppVisitor, self).__init__(name, directory, time)
         self.namespaces = []
         self.class_name = None
         self.constructors = set()
@@ -627,7 +627,7 @@ class HppVisitor(BaseVisitor):
     def on_file_begin(self, filename):
         # TODO Add file header
         
-        self.file = open(generate_file_name(self.directory, filename, '_cppython.hpp'), 'w')
+        self.file = open(os.path.join(self.directory, self.name + '_cppython.hpp'), 'w')
         self.header_file_path = os.path.relpath(filename, self.directory)
         
         stem = os.path.splitext(os.path.basename(filename))[0]
@@ -737,20 +737,20 @@ class CppVisitor(BaseVisitor):
     '''Generate C++ source files wrapping C++ non pod classes for use in python
     '''
     
-    def __init__(self, directory='.', time=None):
-        super(CppVisitor, self).__init__(directory, time)
+    def __init__(self, name, directory='.', time=None):
+        super(CppVisitor, self).__init__(name, directory, time)
         self.namespaces = []
         self.class_name = None
         
     def on_file_begin(self, filename):
         # TODO Add file header
         
-        self.file = open(generate_file_name(self.directory, filename, '_cppython.cpp'), 'w')
-        self.header_file_path = os.path.relpath(self.file.name, self.directory).replace('.cpp', '.hpp')
+        self.file = open(os.path.join(self.directory, self.name+'_cppython.cpp'), 'w')
+        self.header_file_path = self.name+'_cppython.hpp'
         
         stem = os.path.basename(os.path.splitext(filename)[0])
         self.writeline('#include "{}"', self.header_file_path)
-        self.writeline('#include "{}_proxy_api.h"', stem)        
+        self.writeline('#include "{}_api.h"', self.name)
         self.file.write('''
 #include <Python.h>
 #include <stdexcept>
@@ -761,7 +761,7 @@ CppythonProxyBase::CppythonProxyBase(PyObject* self)
     if (self_ == NULL) {
         throw std::runtime_error("self object is NULL");
     }
-    if (import_%s_proxy()) {
+    if (import_%s()) {
         throw std::runtime_error("could not import python extension module");
     } 
     Py_XINCREF(self_);
@@ -772,7 +772,7 @@ CppythonProxyBase::~CppythonProxyBase()
     Py_XDECREF(self_);
 }
 
-''' % stem)
+''' % self.name)
         
     def on_file_end(self):
         self.file.close()
@@ -855,8 +855,89 @@ class PxiVisitor(BaseVisitor):
     '''Generate public API for wrapping C++
     '''
     
-    def __init__(self, directory='.', time=None):
-        super(PxiVisitor, self).__init__(directory, time)
+    def __init__(self, name, directory='.', time=None):
+        super(PxiVisitor, self).__init__(name, directory, time)
+        self.namespaces = []
+        self.class_name = None
+        
+    def on_file_begin(self, filename):
+        # TODO Add file header
+        self.file = open(os.path.join(self.directory, self.name+'.pxi'), 'w')
+
+        self.writeline('import types')
+        self.writeline('cdef public api bool cppython_has_method(object self, const char* method_name):')
+        with indent(self):
+            self.writeline('method = getattr(self, method_name, None)')
+            self.writeline('return isinstance(method, types.MethodType)')
+        
+    def on_file_end(self):
+        self.file.close()
+        
+    def on_namespace_begin(self, namespace):
+        self.namespaces.append(namespace)
+        
+    def on_namespace_end(self, namespace):
+        self.namespaces.pop()
+        
+    def on_typedef(self, name, typename):
+        pass
+        
+    def on_enum(self, name, constants):
+        pass
+        
+    def on_const_int(self, name, value):
+        pass
+        
+    def on_macro_value(self, name, value):
+        pass
+        
+    def on_pod_begin(self, kind, name, typedef):
+        pass
+        
+    def on_pod_end(self, name):
+        pass
+        
+    def on_class_begin(self, kind, name, typedef):
+        self.class_name = name
+        
+    def on_class_end(self, name):
+        self.class_name = None
+        
+    def on_field(self, name, typename):
+        pass
+        
+    def on_method(self, name, return_type, parameters, access, method_type):        
+        if method_type not in ('virtual', 'pure'):
+            return
+            
+        parameters = [(split_namespace_name(t)[0], n) for (t, n) in parameters]
+        parameters_list = ', '.join('{} {}'.format(t, n) for (t, n) in parameters)
+        parameters_names = ', '.join(self.get_use_format(t, n) for (t, n) in parameters)
+        return_name, namespaces = split_namespace_name(return_type)
+        
+        parameters_list = ', '.join(['object self', parameters_list])
+        self.writeline('cdef public api {} {}_{}_proxy_call({}):',
+                       return_name, self.class_name,
+                       name, parameters_list)
+        
+        return_ = '' if return_name == 'void' else 'return '
+        with indent(self):
+            self.writeline('method = getattr(self, "{}", None)', name)
+            self.writeline('{}method({})', return_, parameters_names)
+            
+    def on_function(self, name, return_type, parameters):
+        pass
+        
+    def on_constructor(self, name, parameters):
+        pass
+        
+        
+class SetupVisitor(BaseVisitor):
+    '''Generate setup file for building python extension
+    '''
+    
+    def __init__(self, name, directory='.', time=None):
+        super(PxiVisitor, self).__init__(name, directory, time)
         self.namespaces = []
         self.class_name = None
         

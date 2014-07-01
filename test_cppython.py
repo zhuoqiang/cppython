@@ -80,7 +80,8 @@ class Test(unittest.TestCase):
         
     def test_apply_visitor(self):
         directory = 'test_module'
-        v = VisitorGroup(v(directory) for v in (PxdVisitor, PyxVisitor, CppVisitor, HppVisitor, PxiVisitor, PxdProxyVisitor))
+        v = VisitorGroup(v('foo', directory) for v in
+                         (PxdVisitor, PyxVisitor, CppVisitor, HppVisitor, PxiVisitor, PxdProxyVisitor))
         apply([self.tu.cursor], v)
 
         

@@ -7,7 +7,6 @@ import sys
 import os
 from distutils.core import setup
 from distutils.extension import Extension
-from Cython.Distutils import build_ext
 from Cython.Build import cythonize
 
 HERE = os.path.dirname(__file__)
@@ -15,17 +14,18 @@ HERE = os.path.dirname(__file__)
 
 extensions = [
     Extension(
-        "for_test_proxy",
-        sources = ["for_test_proxy.pyx", 'for_test.cpp', 'for_test_cppython.cpp'],
+        "foo",
+        sources = ["foo.pyx", 'for_test.cpp', 'foo_cppython.cpp'],
         include_dirs = [],
         libraries = [],
         library_dirs = []),
 ]
 
 
-setup(
-    ext_modules = cythonize(extensions),
-)
-
 if __name__ == '__main__':
-    pass
+    if len(sys.argv) == 1:
+        sys.argv.append('build_ext')
+        sys.argv.append('--inplace')
+    
+    setup(ext_modules=cythonize(extensions))
+    

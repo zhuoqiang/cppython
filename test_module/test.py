@@ -11,7 +11,7 @@ __date__ = '2014-06-26 15:04'
 __version_info__ = (0, 1, 0)
 __version__ = '.'.join(str(i) for i in __version_info__)
 
-from for_test_proxy import *
+from foo import *
 import unittest
 
 class Test(unittest.TestCase):
