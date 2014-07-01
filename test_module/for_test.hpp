@@ -50,19 +50,17 @@ namespace for_test_namespace {
     class C2
     {
     public:
-        C2() {}
-        
-        // C2(int a)
-        //     : _a(a)
-        // {}
+        C2(int a)
+            : _a(a)
+        {}
         virtual int pure_virtual_method() = 0;
         
-        int normal_method() {
-            return 3;
+        int normal_method(int n) {
+            return 1 + n + _a;
         }
         
         static int static_method() {
-            return 0;
+            return 4;
         }
         
     private:
@@ -72,9 +70,9 @@ namespace for_test_namespace {
     class C1
     {
     public:
-        // C1(C2* c2)
-        //     : _c2(c2)
-        // {}
+        C1(C2* c2)
+            : _c2(c2)
+        {}
 
         virtual int virtual_method();
         virtual int virtual_method_call_other();

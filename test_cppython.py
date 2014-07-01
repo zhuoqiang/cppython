@@ -58,12 +58,14 @@ class Test(unittest.TestCase):
             call.on_function('use_s1', 'void', [('for_test_namespace::S1 &', 's1')]),
             
             call.on_class_begin('class', 'C2', False),
+            call.on_constructor('C2', [('int', 'a')]),
             call.on_method('pure_virtual_method', 'int', [], 'public', 'pure'),
-            call.on_method('normal_method', 'int', [], 'public', ''),
+            call.on_method('normal_method', 'int', [('int', 'n')], 'public', ''),
             call.on_method('static_method', 'int', [], 'public', 'static'),
             call.on_class_end('C2'),
             
             call.on_class_begin('class', 'C1', False),
+            call.on_constructor('C1', [('for_test_namespace::C2 *', 'c2')]),
             call.on_method('virtual_method', 'int', [], 'public', 'virtual'),
             call.on_method('virtual_method_call_other', 'int', [], 'public', 'virtual'),            
             call.on_class_end('C1'),

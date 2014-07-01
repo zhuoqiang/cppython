@@ -42,29 +42,41 @@ class Test(unittest.TestCase):
         self.assertEqual(s1.a, 1024)
         
     def test_class(self):
-        c2 = C2()
-        self.assertEqual(c2.normal_method(), 3)
+        c2 = C2(1)
+        self.assertEqual(c2.normal_method(1), 3)
 
         with self.assertRaisesRegexp(RuntimeError, '.*?::pure_virtual_method not implemented'):
             c2.pure_virtual_method()
 
+        self.assertEqual(c2.static_method(), 4)
+        # TODO make C++ static method a python static method
+        # self.assertEqual(C2.static_method(), 4)        
+            
         class D2(C2):
+            def __init__(self):
+                C2.__init__(self, 10)
+            
             def pure_virtual_method(self):
-                return -7
+                return self.normal_method(10) + 10
             
         d2 = D2()
-        self.assertEqual(d2.pure_virtual_method(), -7)
+        self.assertEqual(d2.pure_virtual_method(), 31)
         
-        c1 = C1()
+        c1 = C1(d2)
         self.assertEqual(c1.virtual_method(), 1)
+        self.assertEqual(c1.virtual_method_call_other(), 32)
 
         class D1(C1):
+            def __init__(self):
+                C1.__init__(self, d2)
+            
             def virtual_method(self):
                 return 100
 
         d1 = D1()
         self.assertEqual(d1.virtual_method(), 100)
         self.assertEqual(call_c1_virtual_method(d1), 100)
+        self.assertEqual(d1.virtual_method_call_other(), 32)
                 
 if __name__ == '__main__':
     unittest.main()
