@@ -19,7 +19,6 @@ class Test(unittest.TestCase):
     def setUp(self):
         self.hpp_path = 'test_module/for_test.hpp'
         self.tu = parse_cpp_file(self.hpp_path)
-        self.maxDiff = None
 
     def tearDown(self):
         pass

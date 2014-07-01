@@ -936,29 +936,54 @@ class SetupVisitor(BaseVisitor):
     '''Generate setup file for building python extension
     '''
     
-    def __init__(self, name, directory='.', time=None):
-        super(PxiVisitor, self).__init__(name, directory, time)
-        self.namespaces = []
-        self.class_name = None
+    def __init__(self, name, directory='.', sources=None, time=None):
+        super(SetupVisitor, self).__init__(name, directory, time)
+        self.file = open(os.path.join(self.directory, 'setup.py'), 'w')
+        self.sources = []
+        if sources:
+            self.sources = sources
         
+        self.sources = [os.path.relpath(i, self.directory) for i in self.sources]
+            
     def on_file_begin(self, filename):
-        # TODO Add file header
-        self.file = open(generate_file_name(self.directory, filename, '_proxy.pxi'), 'w')
-
-        self.writeline('import types')        
-        self.writeline('cdef public api bool cppython_has_method(object self, const char* method_name):')
-        with indent(self):
-            self.writeline('method = getattr(self, method_name, None)')
-            self.writeline('return isinstance(method, types.MethodType)')
+        self.filename = filename
         
     def on_file_end(self):
+        self.writeline('''#! /usr/bin/env python
+# -*- coding: utf-8 -*-
+
+import sys
+import os
+from distutils.core import setup
+from distutils.extension import Extension
+from Cython.Build import cythonize
+
+HERE = os.path.dirname(__file__)
+
+
+extensions = [
+    Extension(
+        "{}",
+        sources = ['{}.pyx', '{}_cppython.cpp', {}],
+        include_dirs = [],
+        libraries = [],
+        library_dirs = []),
+]
+
+if __name__ == '__main__':
+    if len(sys.argv) == 1:
+        sys.argv.append('build_ext')
+        sys.argv.append('--inplace')
+    
+    setup(ext_modules=cythonize(extensions))
+''', self.name, self.name, self.name, ', '.join("'{}'".format(i) for i in self.sources))
         self.file.close()
         
     def on_namespace_begin(self, namespace):
-        self.namespaces.append(namespace)
+        pass
         
     def on_namespace_end(self, namespace):
-        self.namespaces.pop()
+        pass
         
     def on_typedef(self, name, typename):
         pass
@@ -979,32 +1004,16 @@ class SetupVisitor(BaseVisitor):
         pass
         
     def on_class_begin(self, kind, name, typedef):
-        self.class_name = name
+        pass
         
     def on_class_end(self, name):
-        self.class_name = None
+        pass
         
     def on_field(self, name, typename):
         pass
         
     def on_method(self, name, return_type, parameters, access, method_type):        
-        if method_type not in ('virtual', 'pure'):
-            return
-            
-        parameters = [(split_namespace_name(t)[0], n) for (t, n) in parameters]
-        parameters_list = ', '.join('{} {}'.format(t, n) for (t, n) in parameters)
-        parameters_names = ', '.join(self.get_use_format(t, n) for (t, n) in parameters)
-        return_name, namespaces = split_namespace_name(return_type)
-        
-        parameters_list = ', '.join(['object self', parameters_list])
-        self.writeline('cdef public api {} {}_{}_proxy_call({}):',
-                       return_name, self.class_name,
-                       name, parameters_list)
-        
-        return_ = '' if return_name == 'void' else 'return '
-        with indent(self):
-            self.writeline('method = getattr(self, "{}", None)', name)
-            self.writeline('{}method({})', return_, parameters_names)
+        pass
             
     def on_function(self, name, return_type, parameters):
         pass
@@ -1013,5 +1022,25 @@ class SetupVisitor(BaseVisitor):
         pass
         
         
+def main(argv):
+    if len(argv) <= 2:
+        print 'cppython input-c++-header-file <additonal c++ source file> output/path/to/module/name'
+        return
+
+    hpp_path = argv[1]
+    module_name = os.path.basename(argv[-1])
+    directory = os.path.dirname(argv[-1])
+    if not os.path.exists(directory):
+        os.makedirs(directory)
+        
+    cpp_files = argv[2:-1]
+    
+    tu = parse_cpp_file(hpp_path)
+    visitors = [v(module_name, directory) for v in
+                (PxdVisitor, PyxVisitor, CppVisitor, HppVisitor, PxiVisitor, PxdProxyVisitor)]
+    visitors.append(SetupVisitor(module_name, directory, cpp_files))
+    apply([tu.cursor], VisitorGroup(visitors))
+    print 'done.'
+        
 if __name__ == '__main__':
-    pass
+    main(sys.argv)
