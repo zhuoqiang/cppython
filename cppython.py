@@ -313,7 +313,7 @@ class PxdVisitor(BaseVisitor):
         # parameters_list = ', '.join('{} {}'.format(t, n) for (t, n) in parameters)
         parameters_list = ', '.join('{} {}'.format(split_namespace_name(t)[0], n) for (t, n) in parameters)        
         return_name, namespaces = split_namespace_name(return_type)
-        self.writeline('cdef {} {}({}) nogil', return_name, name, parameters_list)
+        self.writeline('cdef {} {}({}) nogil except +', return_name, name, parameters_list)
         
         
 class PxdProxyVisitor(BaseVisitor):
@@ -386,7 +386,7 @@ class PxdProxyVisitor(BaseVisitor):
         parameters_list = ', '.join('{} {}'.format(t, n) for (t, n) in parameters)
         return_name, namespaces = split_namespace_name(return_type)
         
-        self.writeline('{} {}({})', return_name, name, parameters_list)
+        self.writeline('{} {}({}) except +', return_name, name, parameters_list)
         
     def on_function(self, name, return_type, parameters):
         pass

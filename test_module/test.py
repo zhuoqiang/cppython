@@ -45,6 +45,16 @@ class Test(unittest.TestCase):
         c2 = C2()
         self.assertEqual(c2.normal_method(), 3)
 
+        with self.assertRaisesRegexp(RuntimeError, '.*?::pure_virtual_method not implemented'):
+            c2.pure_virtual_method()
+
+        class D2(C2):
+            def pure_virtual_method(self):
+                return -7
+            
+        d2 = D2()
+        self.assertEqual(d2.pure_virtual_method(), -7)
+        
         c1 = C1()
         self.assertEqual(c1.virtual_method(), 1)
 
