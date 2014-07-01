@@ -183,11 +183,6 @@ class VisitorGroup(object):
         return method
         
         
-def generate_file_name(directory, base_file_name, extension):
-    stem = os.path.splitext(os.path.basename(base_file_name))[0]
-    return os.path.join(directory, stem+extension)
-        
-    
 class BaseVisitor(object):
     INDENT = '    '        
     def __init__(self, name, directory, time=None):
@@ -238,7 +233,8 @@ class PxdVisitor(BaseVisitor):
     def on_file_begin(self, filename):
         # TODO Add file header
         
-        self.file = open(generate_file_name(self.directory, filename, '.pxd'), 'w')
+        name = os.path.join(self.directory, os.path.splitext(os.path.basename(filename))[0] + '.pxd')
+        self.file = open(name, 'w')
         self.header_file_path = os.path.relpath(filename, self.directory)
         
         self.writeline("'''{}'''", self.banner)
