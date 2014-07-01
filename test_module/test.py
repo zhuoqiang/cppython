@@ -29,6 +29,7 @@ class Test(unittest.TestCase):
         self.assertEqual(CONST_2, 10)
         self.assertEqual(DEFINE_1, '1')
 
+    def test_struct(self):
         s1 = build_s1(1, "ab")
         self.assertEqual(s1.a, 1)        
         self.assertEqual(s1.b, "ab")
@@ -40,5 +41,20 @@ class Test(unittest.TestCase):
         use_s1(s1)
         self.assertEqual(s1.a, 1024)
         
+    def test_class(self):
+        c2 = C2()
+        self.assertEqual(c2.normal_method(), 3)
+
+        c1 = C1()
+        self.assertEqual(c1.virtual_method(), 1)
+
+        class D1(C1):
+            def virtual_method(self):
+                return 100
+
+        d1 = D1()
+        self.assertEqual(d1.virtual_method(), 100)
+        self.assertEqual(call_c1_virtual_method(d1), 100)
+                
 if __name__ == '__main__':
     unittest.main()

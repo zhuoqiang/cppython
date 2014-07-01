@@ -55,10 +55,16 @@ namespace for_test_namespace {
         // C2(int a)
         //     : _a(a)
         // {}
-        virtual int get() = 0;
-        static int s() {
+        virtual int pure_virtual_method() = 0;
+        
+        int normal_method() {
+            return 3;
+        }
+        
+        static int static_method() {
             return 0;
         }
+        
     private:
         int _a;
     };
@@ -70,12 +76,18 @@ namespace for_test_namespace {
         //     : _c2(c2)
         // {}
 
-        virtual int f();
+        virtual int virtual_method();
+        virtual int virtual_method_call_other();
 
     private:
         C2* _c2;
     };
 
+    inline int call_c1_virtual_method(C1* c1)
+    {
+        return c1->virtual_method();
+    }
+    
 }
 
 const long long CONST_3 = 3;

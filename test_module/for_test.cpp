@@ -17,8 +17,13 @@ namespace for_test_namespace {
         s1.a = 1024;
     }
 
-    int C1::f()
+    int C1::virtual_method()
     {
-        return 1 + _c2->get();
+        return 1;
+    }
+
+    int C1::virtual_method_call_other()
+    {
+        return 1 + _c2->pure_virtual_method();
     }
 }

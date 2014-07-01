@@ -162,7 +162,7 @@ def apply(children, visitor):
             visitor.on_function(name, return_type, parameters)
             
         else:
-            print child.kind, child.spelling, child.type.spelling
+            # print child.kind, child.spelling, child.type.spelling
             pass
         
     
@@ -400,6 +400,7 @@ class PyxVisitor(BaseVisitor):
         super(PyxVisitor, self).__init__(directory, time)
         self.types = {}
         self.pod_types = set()
+        self.class_types = set()
         
     def on_file_begin(self, filename):
         # TODO Add file header
@@ -459,6 +460,7 @@ class PyxVisitor(BaseVisitor):
         
         
     def on_class_begin(self, kind, name, typedef):
+        self.class_types.add(name)
         self.writeline('cdef class {}:', name)
         self.reset_indent(1)
         
@@ -520,12 +522,25 @@ class PyxVisitor(BaseVisitor):
     def get_use_format(self, typename, name):
         if typename in self.pod_types:
             return '{}._this'.format(name)
+
+        class_name = typename.split()[0]
+        if class_name in self.class_types:
+            return '<{}.{}*>({}._this)'.format(self.import_name, class_name, name)
         return name
                     
+        
+    def get_use_type(self, typename):
+        class_name = typename.split()[0]
+        if typename.split()[0] in self.class_types:
+            return class_name
+
+        return typename
+        
+        
     def on_function(self, name, return_type, parameters):
         # remove namespace and reference
         parameters = [(split_namespace_name(t)[0], n) for (t, n) in parameters]
-        parameters_list = ', '.join('{} {}'.format(t, n) for (t, n) in parameters)
+        parameters_list = ', '.join('{} {}'.format(self.get_use_type(t), n) for (t, n) in parameters)
         parameters_names = ', '.join(self.get_use_format(t, n) for (t, n) in parameters)
         return_name, namespaces = split_namespace_name(return_type)
         self.writeline('cpdef {}({}):', name, parameters_list)
@@ -818,6 +833,9 @@ class PxiVisitor(BaseVisitor):
         pass
         
     def on_method(self, name, return_type, parameters, access, method_type):        
+        if method_type not in ('virtual', 'pure'):
+            return
+            
         parameters = [(split_namespace_name(t)[0], n) for (t, n) in parameters]
         parameters_list = ', '.join('{} {}'.format(t, n) for (t, n) in parameters)
         parameters_names = ', '.join(self.get_use_format(t, n) for (t, n) in parameters)
@@ -828,7 +846,7 @@ class PxiVisitor(BaseVisitor):
                        return_name, self.class_name,
                        name, parameters_list)
         
-        return_ = 'return ' if return_name == 'void' else ''
+        return_ = '' if return_name == 'void' else 'return '
         with indent(self):
             self.writeline('method = getattr(self, "{}", None)', name)
             self.writeline('{}method({})', return_, parameters_names)
