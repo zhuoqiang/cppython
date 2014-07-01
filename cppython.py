@@ -8,7 +8,6 @@ import sys
 import os
 import re
 import datetime
-import ast
 from datetime import datetime
 from contextlib import contextmanager
 
@@ -1044,6 +1043,8 @@ def main(argv):
                 (PxdVisitor, PyxVisitor, CppVisitor, HppVisitor, PxiVisitor, PxdProxyVisitor)]
     visitors.append(SetupVisitor(module_name, directory, cpp_files))
     apply([tu.cursor], VisitorGroup(visitors))
+    for v in visitors:
+        print 'generating {} ...'.format(v.file.name)
     print 'done.'
         
 if __name__ == '__main__':

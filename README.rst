@@ -63,3 +63,5 @@ todo
 * forward declaration support
 * boost.python support
 * support customize C++ entities name
+* add include path support
+* support more than one constructor,right now it only export the first constructor
