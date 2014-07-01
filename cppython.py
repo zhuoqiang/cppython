@@ -615,11 +615,13 @@ private:
         
     def on_class_begin(self, kind, name, typedef):
         self.class_name = get_proxy_name(name)
+        base_class_full_name = '::'+'::'.join(self.namespaces+[name])
         self.writeline('class {} : public {}, public CppythonProxyBase',
-                       self.class_name, '::'+'::'.join(self.namespaces+[name]))
+                       self.class_name, base_class_full_name)
         self.writeline('{{')
         self.writeline('public:')
         self.reset_indent(1)
+        self.writeline('typedef {} BaseClassType;', base_class_full_name);
         
         self.writeline('{}(PyObject* object)', self.class_name)
         self.writeline('    : CppythonProxyBase(object)')
@@ -684,6 +686,7 @@ CppythonProxyBase::~CppythonProxyBase()
 {
     Py_XDECREF(self_);
 }
+
 ''' % stem)
         
     def on_file_end(self):
@@ -714,9 +717,11 @@ CppythonProxyBase::~CppythonProxyBase()
         pass
         
     def on_class_begin(self, kind, name, typedef):
+        self.base_class_name = name
         self.class_name = get_proxy_name(name)
         
     def on_class_end(self, name):
+        self.base_class_name = None
         self.class_name = None
         
     def on_field(self, name, typename):
@@ -725,11 +730,33 @@ CppythonProxyBase::~CppythonProxyBase()
     def on_method(self, name, return_type, parameters, access, method_type):        
         if method_type in ('pure', 'virtual'):
             parameters_list = ', '.join('{} {}'.format(t, n) for (t, n) in parameters)
+            parameters_name = ', '.join(n for (t, n) in parameters)
+            parameters_name_for_proxy = ''
+            if parameters_name:
+                parameters_name_for_proxy = ', ' + parameters_name
             self.writeline('{} {}::{}({})', return_type, self.class_name, name, parameters_list)
             self.writeline('{{')
-            # TODO change implementation
-            self.writeline('    return 0;')
+            with indent(self):
+                self.writeline('bool overrided = cppython_has_method(this->Self(), (char*)"{}");', name)
+                self.writeline('if (overrided) {{')
+                with indent(self):
+                    if return_type == 'void':
+                        self.writeline('{}_{}_proxy_call(this->Self(){});',
+                                       self.base_class_name, name, parameters_name_for_proxy)
+                        
+                        self.writeline('return;')
+                    else:
+                        self.writeline('return {}_{}_proxy_call(this->Self(){});',
+                                       self.base_class_name, name, parameters_name_for_proxy)                    
+                self.writeline('}}')
+                if method_type == 'pure':
+                    self.writeline('throw std::runtime_error("pure virtual method {}::{} not implemented");',
+                                   self.class_name, name)
+                else:
+                    self.writeline('return BaseClassType::{}({});', name, parameters_name)
+                
             self.writeline('}}')
+            self.writeline()
         
     def on_function(self, name, return_type, parameters):
         pass
@@ -747,7 +774,12 @@ class PxiVisitor(BaseVisitor):
     def on_file_begin(self, filename):
         # TODO Add file header
         self.file = open(generate_file_name(self.directory, filename, '_proxy.pxi'), 'w')
-        self.writeline('cdef public api void _cppython_(): pass ')
+
+        self.writeline('import types')        
+        self.writeline('cdef public api bool cppython_has_method(object self, const char* method_name):')
+        with indent(self):
+            self.writeline('method = getattr(self, method_name, None)')
+            self.writeline('return isinstance(method, types.MethodType)')
         
     def on_file_end(self):
         self.file.close()
@@ -786,8 +818,21 @@ class PxiVisitor(BaseVisitor):
         pass
         
     def on_method(self, name, return_type, parameters, access, method_type):        
-        pass
+        parameters = [(split_namespace_name(t)[0], n) for (t, n) in parameters]
+        parameters_list = ', '.join('{} {}'.format(t, n) for (t, n) in parameters)
+        parameters_names = ', '.join(self.get_use_format(t, n) for (t, n) in parameters)
+        return_name, namespaces = split_namespace_name(return_type)
         
+        parameters_list = ', '.join(['object self', parameters_list])
+        self.writeline('cdef public api {} {}_{}_proxy_call({}):',
+                       return_name, self.class_name,
+                       name, parameters_list)
+        
+        return_ = 'return ' if return_name == 'void' else ''
+        with indent(self):
+            self.writeline('method = getattr(self, "{}", None)', name)
+            self.writeline('{}method({})', return_, parameters_names)
+            
     def on_function(self, name, return_type, parameters):
         pass
         
