@@ -82,7 +82,10 @@ namespace for_test_namespace {
 
         virtual int on_struct(S1& s1);
         virtual int on_struct_pointer(S1* s1);
-        // virtual C2* get_c2();
+        // virtual C2* get_c2()
+        // {
+        //     return _c2;
+        // }
 
         virtual ~C1() {}        
         

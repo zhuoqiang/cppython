@@ -864,6 +864,7 @@ class PxiVisitor(BaseVisitor):
         self.namespaces = []
         self.class_name = None
         self.pod_types = set()
+        self.class_types = set()
         
     def on_file_begin(self, filename):
         # TODO Add file header
@@ -907,6 +908,7 @@ class PxiVisitor(BaseVisitor):
         
     def on_class_begin(self, kind, name, typedef):
         self.class_name = name
+        self.class_types.add(name)
         
     def on_class_end(self, name):
         self.class_name = None
@@ -917,14 +919,14 @@ class PxiVisitor(BaseVisitor):
     def get_use_format(self, typename, name):
         is_pointer = typename.endswith('*')
         typename = typename.split()[0]
-        if typename in self.pod_types:
+        if typename in self.pod_types or typename in self.class_types:
             return '{}()._from_c_({}{})'.format(typename, name, '[0]' if is_pointer else '')
         return name
         
     def get_use_type(self, typename):
         is_pointer = typename[-1] == '*'
         typename = typename.split()[0]
-        if typename in self.pod_types:
+        if typename in self.pod_types or typename in self.class_types:
             return '{}.{}{}'.format(self.import_name, typename, '*' if is_pointer else '')
         return typename
         
@@ -936,6 +938,7 @@ class PxiVisitor(BaseVisitor):
         parameters_list = ', '.join('{} {}'.format(self.get_use_type(t), n) for (t, n) in parameters)
         parameters_names = ', '.join(self.get_use_format(t, n) for (t, n) in parameters)
         return_name, namespaces = split_namespace_name(return_type)
+        return_name = self.get_use_type(return_name)
         
         parameters_list = ', '.join(['object self', parameters_list])
         self.writeline('cdef public api {} {}_{}_proxy_call({}):',
