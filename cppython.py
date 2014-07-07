@@ -322,8 +322,6 @@ class PxdVisitor(BaseVisitor):
         return_name, namespaces = split_namespace_name(return_type)
         self.writeline('cdef {} {}({}) nogil except +', return_name, name, parameters_list)
         
-         
-        
         
 class PxdProxyVisitor(BaseVisitor):
     '''Generate pxd file exporting C++ proxy header declaration in cython
@@ -336,6 +334,7 @@ class PxdProxyVisitor(BaseVisitor):
         self.class_name = None
         self.constructors = set()
         self.class_names = set()
+        self.pod_names = set()
         
     def on_file_begin(self, filename):
         # TODO Add file header
@@ -376,7 +375,7 @@ class PxdProxyVisitor(BaseVisitor):
         pass
         
     def on_pod_begin(self, kind, name, typedef):
-        pass
+        self.pod_names.add(name)        
         
     def on_pod_end(self, name):
         pass
@@ -393,11 +392,10 @@ class PxdProxyVisitor(BaseVisitor):
         parameters_list = ', '.join('{} {}'.format(self.get_use_type(t), n) for (t, n) in parameters)
         self.writeline('{}(PyObject* self_object, {})', self.class_name, parameters_list)
         
-        
     def get_use_type(self, typename):
-        class_name = typename.split()[0]
-        if class_name in self.class_names:
-            return typename.replace(class_name, '{}.{}'.format(self.import_name, class_name))
+        name = typename.split()[0]
+        if name in self.class_names or name in self.pod_names:
+            return typename.replace(name, '{}.{}'.format(self.import_name, name))
             
         return typename
         
@@ -411,9 +409,9 @@ class PxdProxyVisitor(BaseVisitor):
     def on_field(self, name, typename):
         pass
         
-    def on_method(self, name, return_type, parameters, access, method_type):        
+    def on_method(self, name, return_type, parameters, access, method_type):
         parameters = [(split_namespace_name(t)[0], n) for (t, n) in parameters]
-        parameters_list = ', '.join('{} {}'.format(t, n) for (t, n) in parameters)
+        parameters_list = ', '.join('{} {}'.format(self.get_use_type(t), n) for (t, n) in parameters)
         return_name, namespaces = split_namespace_name(return_type)
         
         self.writeline('{} {}({}) except +', return_name, name, parameters_list)
@@ -554,7 +552,7 @@ class PyxVisitor(BaseVisitor):
     def on_method(self, name, return_type, parameters, access, method_type):        
         # remove namespace and reference
         parameters = [(split_namespace_name(t)[0], n) for (t, n) in parameters]
-        parameters_list = 'self, ' + ', '.join('{} {}'.format(t, n) for (t, n) in parameters)
+        parameters_list = 'self, ' + ', '.join('{} {}'.format(self.get_use_type(t), n) for (t, n) in parameters)
         parameters_names = ', '.join(self.get_use_format(t, n) for (t, n) in parameters)
         return_name, namespaces = split_namespace_name(return_type)
             
@@ -570,10 +568,14 @@ class PyxVisitor(BaseVisitor):
         
                 
     def get_use_format(self, typename, name):
-        if typename in self.pod_types:
-            return '{}._this'.format(name)
-
+        is_pointer = typename[-1] == '*'
         class_name = typename.split()[0]
+        if class_name in self.pod_types:
+            if is_pointer:
+                return '&{}._this'.format(name)
+            else:
+                return '{}._this'.format(name)
+
         if class_name in self.class_types:
             # return '<{}.{}*>({}._this)'.format(self.import_name, class_name, name)
             return '{}._this'.format(name)            
@@ -581,9 +583,9 @@ class PyxVisitor(BaseVisitor):
                     
         
     def get_use_type(self, typename):
-        class_name = typename.split()[0]
-        if typename.split()[0] in self.class_types:
-            return class_name
+        name = typename.split()[0]
+        if name in self.class_types or name in self.pod_types:
+            return name
 
         return typename
         
@@ -824,7 +826,7 @@ CppythonProxyBase::~CppythonProxyBase()
             self.writeline('{} {}::{}({})', return_type, self.class_name, name, parameters_list)
             self.writeline('{{')
             with indent(self):
-                self.writeline('bool overrided = cppython_has_method(this->Self(), (char*)"{}");', name)
+                self.writeline('bool overrided = cppython_has_method(this->Self(), "{}");', name)
                 self.writeline('if (overrided) {{')
                 with indent(self):
                     if return_type == 'void':
@@ -861,9 +863,12 @@ class PxiVisitor(BaseVisitor):
         super(PxiVisitor, self).__init__(name, directory, time)
         self.namespaces = []
         self.class_name = None
+        self.pod_types = set()
         
     def on_file_begin(self, filename):
         # TODO Add file header
+        self.import_name = os.path.basename(os.path.splitext(filename)[0])
+        
         self.file = open(os.path.join(self.directory, self.name+'.pxi'), 'w')
 
         self.writeline("'''{}'''", self.banner)        
@@ -895,7 +900,7 @@ class PxiVisitor(BaseVisitor):
         pass
         
     def on_pod_begin(self, kind, name, typedef):
-        pass
+        self.pod_types.add(name)
         
     def on_pod_end(self, name):
         pass
@@ -909,12 +914,26 @@ class PxiVisitor(BaseVisitor):
     def on_field(self, name, typename):
         pass
         
+    def get_use_format(self, typename, name):
+        is_pointer = typename.endswith('*')
+        typename = typename.split()[0]
+        if typename in self.pod_types:
+            return '{}()._from_c_({}{})'.format(typename, name, '[0]' if is_pointer else '')
+        return name
+        
+    def get_use_type(self, typename):
+        is_pointer = typename[-1] == '*'
+        typename = typename.split()[0]
+        if typename in self.pod_types:
+            return '{}.{}{}'.format(self.import_name, typename, '*' if is_pointer else '')
+        return typename
+        
     def on_method(self, name, return_type, parameters, access, method_type):        
         if method_type not in ('virtual', 'pure'):
             return
             
         parameters = [(split_namespace_name(t)[0], n) for (t, n) in parameters]
-        parameters_list = ', '.join('{} {}'.format(t, n) for (t, n) in parameters)
+        parameters_list = ', '.join('{} {}'.format(self.get_use_type(t), n) for (t, n) in parameters)
         parameters_names = ', '.join(self.get_use_format(t, n) for (t, n) in parameters)
         return_name, namespaces = split_namespace_name(return_type)
         
@@ -968,6 +987,7 @@ extensions = [
     Extension(
         "{}",
         sources = [os.path.relpath(i, HERE) for i in ['{}.pyx', '{}_cppython.cpp', {}]],
+        language = 'c++',
         include_dirs = [],
         libraries = [],
         library_dirs = []),
@@ -1033,7 +1053,7 @@ def main(argv):
     hpp_path = argv[1]
     module_name = os.path.basename(argv[-1])
     directory = os.path.dirname(argv[-1])
-    if not os.path.exists(directory):
+    if directory and not os.path.exists(directory):
         os.makedirs(directory)
         
     cpp_files = argv[2:-1]

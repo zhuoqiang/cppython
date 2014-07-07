@@ -17,6 +17,11 @@ namespace for_test_namespace {
         s1.a = 1024;
     }
 
+    void use_s1_pointer(S1* s1)
+    {
+        s1->a = 777;        
+    }
+    
     int C1::virtual_method()
     {
         return 1;
@@ -25,5 +30,19 @@ namespace for_test_namespace {
     int C1::virtual_method_call_other()
     {
         return 1 + _c2->pure_virtual_method();
+    }
+
+    int C1::on_struct(S1& s1)
+    {
+        int old = s1.a;
+        s1.a = 111;
+        return old;
+    }
+
+    int C1::on_struct_pointer(S1* s1)
+    {
+        int old = s1->a;
+        s1->a = 222;
+        return old;
     }
 }

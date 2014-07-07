@@ -65,3 +65,11 @@ todo
 * support customize C++ entities name
 * add include path support
 * support more than one constructor,right now it only export the first constructor
+
+
+
+How to run test
+------------------
+
+ python test_cppython.py && cd test_module; python setup.py && python test.py; cd -
+            

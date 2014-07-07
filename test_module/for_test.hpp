@@ -46,6 +46,7 @@ namespace for_test_namespace {
     S1 build_s1(int a, char const* b);
 
     void use_s1(S1& s1);
+    void use_s1_pointer(S1* s1);    
 
     class C2
     {
@@ -78,6 +79,10 @@ namespace for_test_namespace {
 
         virtual int virtual_method();
         virtual int virtual_method_call_other();
+
+        virtual int on_struct(S1& s1);
+        virtual int on_struct_pointer(S1* s1);
+        // virtual C2* get_c2();
 
         virtual ~C1() {}        
         

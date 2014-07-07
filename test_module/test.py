@@ -41,6 +41,9 @@ class Test(unittest.TestCase):
         use_s1(s1)
         self.assertEqual(s1.a, 1024)
         
+        use_s1_pointer(s1)
+        self.assertEqual(s1.a, 777)
+        
     def test_class(self):
         c2 = C2(1)
         self.assertEqual(c2.normal_method(1), 3)
@@ -65,7 +68,14 @@ class Test(unittest.TestCase):
         c1 = C1(d2)
         self.assertEqual(c1.virtual_method(), 1)
         self.assertEqual(c1.virtual_method_call_other(), 32)
+        s1 = build_s1(1, "ab")
+        self.assertEqual(s1.a, 1)
+        self.assertEqual(c1.on_struct(s1), 1)
+        self.assertEqual(s1.a, 111)
 
+        self.assertEqual(c1.on_struct_pointer(s1), 111)
+        self.assertEqual(s1.a, 222)
+        
         class D1(C1):
             def __init__(self):
                 C1.__init__(self, d2)
