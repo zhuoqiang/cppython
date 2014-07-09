@@ -1061,7 +1061,13 @@ def main(argv):
         
     cpp_files = argv[2:-1]
     
-    tu = parse_cpp_file(hpp_path)
+    try:
+        tu = parse_cpp_file(hpp_path)
+    except LibclangError as e:
+        print 'ERROR: clang shared library not found, please download and place it in this directory: {}'.format(
+            os.path.dirname(clang.__file__))
+        return
+        
     visitors = [v(module_name, directory) for v in
                 (PxdVisitor, PyxVisitor, CppVisitor, HppVisitor, PxiVisitor, PxdProxyVisitor)]
     visitors.append(SetupVisitor(module_name, directory, cpp_files))

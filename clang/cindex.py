@@ -3508,4 +3508,5 @@ __all__ = [
     'TranslationUnit',
     'TypeKind',
     'Type',
+    'LibclangError',
 ]
