@@ -71,5 +71,6 @@ todo
 How to run test
 ------------------
 
- python test_cppython.py && cd test_module; python setup.py && python test.py; cd -
-            
+*  ubuntu 64 and Mac are supported out of the box
+*  `mock`, `enum34` and `cython` need to be installed first
+*  run `./test.sh`   

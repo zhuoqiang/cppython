@@ -17,6 +17,7 @@ __version__ = '.'.join(str(i) for i in __version_info__)
 
 class Test(unittest.TestCase):
     def setUp(self):
+        self.maxDiff = None
         self.hpp_path = 'test_module/for_test.hpp'
         self.tu = parse_cpp_file(self.hpp_path)
 
@@ -27,8 +28,16 @@ class Test(unittest.TestCase):
         mock = MagicMock()
         apply([self.tu.cursor], mock)
 
+        platform_macro = []
+        if sys.platform == 'linux2':
+            platform_macro = [
+                call.on_macro_value('unix', '1'),
+                call.on_macro_value('linux', '1'),
+            ]
+        
         self.assertListEqual(mock.mock_calls, [
-            call.on_file_begin(self.hpp_path),
+            call.on_file_begin(self.hpp_path),] + 
+            platform_macro + [
             call.on_macro_value('DEFINE_1', "'1'"),
             call.on_namespace_begin('for_test_namespace'),
             call.on_namespace_begin('inner_namespace'),
