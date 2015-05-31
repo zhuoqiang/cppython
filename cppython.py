@@ -8,6 +8,7 @@ import sys
 import os
 import re
 import datetime
+import argparse
 from datetime import datetime
 from contextlib import contextmanager
 
@@ -16,7 +17,7 @@ import clang
 
 __author__ = 'ZHUO Qiang'
 __date__ = '2014-06-23 21:45'
-__version_info__ = (0, 1, 0)
+__version_info__ = (0, 2, 0)
 __version__ = '.'.join(str(i) for i in __version_info__)
 
 # Assume clang lib is beside clang package
@@ -126,13 +127,19 @@ def apply(children, visitor):
                     continue # discard struct with no name
                 
             if child.type.is_pod():
-                visitor.on_pod_begin(compound_name, name, typedef)
-                apply(child.get_children(), visitor)
-                visitor.on_pod_end(name)
+                if child.is_definition():
+                    visitor.on_pod_begin(compound_name, name, typedef)
+                    apply(child.get_children(), visitor)
+                    visitor.on_pod_end(name)
+                else:
+                    visitor.on_pod_declaration(compound_name, name, typedef)
             else:
-                visitor.on_class_begin(compound_name, name, typedef)
-                apply(child.get_children(), visitor)
-                visitor.on_class_end(name)
+                if child.is_definition():
+                    visitor.on_class_begin(compound_name, name, typedef)
+                    apply(child.get_children(), visitor)
+                    visitor.on_class_end(name)
+                else:
+                    visitor.on_class_declaration(compound_name, name, typedef)
 
         elif child.kind == CursorKind.FIELD_DECL:
             if child.access_specifier.name != 'PRIVATE':
@@ -208,6 +215,11 @@ class BaseVisitor(object):
             self.writeline()
         self.indent_level = max(0, self.indent_level+level)
         
+    def on_pod_declaration(self, compound_name, name, typedef):
+        pass
+
+    def on_class_declaration(self, compound_name, name, typedef):
+        pass
 
 
 @contextmanager        
@@ -510,7 +522,8 @@ class PyxVisitor(BaseVisitor):
         parameters_list = ', '.join('{} {}'.format(self.get_use_type(t), n) for (t, n) in parameters)
         parameters_names = ', '.join(self.get_use_format(t, n) for (t, n) in parameters)
         
-        self.writeline('def __init__(self, {}):', parameters_list)
+        parameters_list = ', '.join(('self', parameters_list, '*l', '**kw'))
+        self.writeline('def __cinit__({}):', parameters_list)
         with indent(self):
             self.writeline('self._this = new {}.{}(<PyObject*>(self), {})',
                            self.import_proxy_name, proxy_name, parameters_names)
@@ -961,7 +974,7 @@ class SetupVisitor(BaseVisitor):
     '''Generate setup file for building python extension
     '''
     
-    def __init__(self, name, directory='.', sources=None, time=None):
+    def __init__(self, name, directory='.', sources=None, include=[], library=[], library_dir=[], time=None, ):
         super(SetupVisitor, self).__init__(name, directory, time)
         self.file = open(os.path.join(self.directory, 'setup.py'), 'w')
         self.sources = []
@@ -969,6 +982,9 @@ class SetupVisitor(BaseVisitor):
             self.sources = sources
         
         self.sources = [os.path.relpath(i, self.directory) for i in self.sources]
+        self.include=include
+        self.library=library
+        self.library_dir=library_dir
             
     def on_file_begin(self, filename):
         self.filename = filename
@@ -991,9 +1007,9 @@ extensions = [
         "{}",
         sources = [os.path.relpath(i, HERE) for i in ['{}.pyx', '{}_cppython.cpp', {}]],
         language = 'c++',
-        include_dirs = [],
-        libraries = [],
-        library_dirs = []),
+        include_dirs = {},
+        libraries = {},
+        library_dirs = {}),
 ]
 
 if __name__ == '__main__':
@@ -1002,7 +1018,10 @@ if __name__ == '__main__':
         sys.argv.append('--inplace')
     
     setup(ext_modules=cythonize(extensions))
-''', self.banner, self.name, self.name, self.name, ', '.join("'{}'".format(i) for i in self.sources))
+        ''', 
+        self.banner, self.name, self.name, self.name, ', '.join("'{}'".format(i) for i in self.sources),
+        self.include, self.library, self.library_dir)
+
         self.file.close()
         
     def on_namespace_begin(self, namespace):
@@ -1049,17 +1068,34 @@ if __name__ == '__main__':
         
         
 def main(argv):
-    if len(argv) <= 2:
-        print 'cppython input-c++-header-file <additonal c++ source file> output/path/to/module/name'
-        return
-
-    hpp_path = argv[1]
-    module_name = os.path.basename(argv[-1])
-    directory = os.path.dirname(argv[-1])
+    cmd_parser = argparse.ArgumentParser()
+    
+    cmd_parser.add_argument('-v', '--version', action='version', version='%(prog)s {}'.format(__version__))
+    cmd_parser.add_argument('-t', '--header', metavar='cpp_header_file.hpp', nargs=1, required=True,
+                            help='target c++ header file for wrapping to python module')
+    cmd_parser.add_argument('-s', '--source', metavar='cpp_source_file.cpp', nargs='*', default=[],
+                            help='additional c++ source files')
+    cmd_parser.add_argument('-i', '--include', metavar='dir/to/c++/include', nargs='*', default=[],
+                            help='additional c++ include path')
+    cmd_parser.add_argument('-l', '--library', metavar='cpplibname', nargs='*', default=[],
+                            help='additional library to link')
+    cmd_parser.add_argument('-d', '--library-dir', metavar='path/to/lib', nargs='*', default=[],
+                            help='additional library directory')
+    cmd_parser.add_argument('-m', '--module', metavar='module_dir/module', required=True,
+                            help='target module output path and module name')
+    
+    args = cmd_parser.parse_args(sys.argv[1:])
+    
+    module_name = os.path.basename(args.module)
+    directory = os.path.dirname(args.module)
     if directory and not os.path.exists(directory):
         os.makedirs(directory)
-        
-    cpp_files = argv[2:-1]
+    
+    hpp_path = args.header[0]
+    cpp_files = args.source
+    
+    include = [os.path.abspath(i) for i in args.include]
+    library_dir = [os.path.abspath(i) for i in args.library_dir]
     
     try:
         tu = parse_cpp_file(hpp_path)
@@ -1070,7 +1106,7 @@ def main(argv):
         
     visitors = [v(module_name, directory) for v in
                 (PxdVisitor, PyxVisitor, CppVisitor, HppVisitor, PxiVisitor, PxdProxyVisitor)]
-    visitors.append(SetupVisitor(module_name, directory, cpp_files))
+    visitors.append(SetupVisitor(module_name, directory, cpp_files, include, args.library, library_dir))
     apply([tu.cursor], VisitorGroup(visitors))
     for v in visitors:
         print 'generating {} ...'.format(v.file.name)
