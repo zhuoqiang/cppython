@@ -62,6 +62,8 @@ call is efficient.
 #
 # o implement additional SourceLocation, SourceRange, and File methods.
 
+from __future__ import print_function
+
 from ctypes import *
 import collections
 
@@ -510,7 +512,7 @@ class CursorKind(object):
         if value >= len(CursorKind._kinds):
             CursorKind._kinds += [None] * (value - len(CursorKind._kinds) + 1)
         if CursorKind._kinds[value] is not None:
-            raise ValueError,'CursorKind already loaded'
+            raise ValueError('CursorKind already loaded')
         self.value = value
         CursorKind._kinds[value] = self
         CursorKind._name_map = None
@@ -531,7 +533,7 @@ class CursorKind(object):
     @staticmethod
     def from_id(id):
         if id >= len(CursorKind._kinds) or CursorKind._kinds[id] is None:
-            raise ValueError,'Unknown cursor kind %d' % id
+            raise ValueError('Unknown cursor kind %d' % id)
         return CursorKind._kinds[id]
 
     @staticmethod
@@ -1477,7 +1479,7 @@ class AccessSpecifier(object):
         if value >= len(AccessSpecifier._kinds):
             AccessSpecifier._kinds += [None] * (value - len(AccessSpecifier._kinds) + 1)
         if AccessSpecifier._kinds[value] is not None:
-            raise ValueError,'AccessSpecifier already loaded'
+            raise ValueError('AccessSpecifier already loaded')
         self.value = value
         AccessSpecifier._kinds[value] = self
         AccessSpecifier._name_map = None
@@ -1498,7 +1500,7 @@ class AccessSpecifier(object):
     @staticmethod
     def from_id(id):
         if id >= len(AccessSpecifier._kinds) or not AccessSpecifier._kinds[id]:
-            raise ValueError,'Unknown access specifier %d' % id
+            raise ValueError('Unknown access specifier %d' % id)
         return AccessSpecifier._kinds[id]
 
     def __repr__(self):
@@ -1525,7 +1527,7 @@ class TypeKind(object):
         if value >= len(TypeKind._kinds):
             TypeKind._kinds += [None] * (value - len(TypeKind._kinds) + 1)
         if TypeKind._kinds[value] is not None:
-            raise ValueError,'TypeKind already loaded'
+            raise ValueError('TypeKind already loaded')
         self.value = value
         TypeKind._kinds[value] = self
         TypeKind._name_map = None
@@ -1551,7 +1553,7 @@ class TypeKind(object):
     @staticmethod
     def from_id(id):
         if id >= len(TypeKind._kinds) or TypeKind._kinds[id] is None:
-            raise ValueError,'Unknown type kind %d' % id
+            raise ValueError('Unknown type kind %d' % id)
         return TypeKind._kinds[id]
 
     def __repr__(self):
@@ -1618,7 +1620,7 @@ class RefQualifierKind(object):
             num_kinds = value - len(RefQualifierKind._kinds) + 1
             RefQualifierKind._kinds += [None] * num_kinds
         if RefQualifierKind._kinds[value] is not None:
-            raise ValueError, 'RefQualifierKind already loaded'
+            raise ValueError('RefQualifierKind already loaded')
         self.value = value
         RefQualifierKind._kinds[value] = self
         RefQualifierKind._name_map = None
@@ -1640,7 +1642,7 @@ class RefQualifierKind(object):
     def from_id(id):
         if (id >= len(RefQualifierKind._kinds) or
                 RefQualifierKind._kinds[id] is None):
-            raise ValueError, 'Unknown type kind %d' % id
+            raise ValueError('Unknown type kind %d' % id)
         return RefQualifierKind._kinds[id]
 
     def __repr__(self):
@@ -2433,9 +2435,9 @@ class TranslationUnit(ClangObject):
                     # FIXME: It would be great to support an efficient version
                     # of this, one day.
                     value = value.read()
-                    print value
+                    print(value)
                 if not isinstance(value, str):
-                    raise TypeError,'Unexpected unsaved file contents.'
+                    raise TypeError('Unexpected unsaved file contents.')
                 unsaved_files_array[i].name = name
                 unsaved_files_array[i].contents = value
                 unsaved_files_array[i].length = len(value)
@@ -2497,9 +2499,9 @@ class TranslationUnit(ClangObject):
                     # FIXME: It would be great to support an efficient version
                     # of this, one day.
                     value = value.read()
-                    print value
+                    print(value)
                 if not isinstance(value, str):
-                    raise TypeError,'Unexpected unsaved file contents.'
+                    raise TypeError('Unexpected unsaved file contents.')
                 unsaved_files_array[i].name = name
                 unsaved_files_array[i].contents = value
                 unsaved_files_array[i].length = len(value)

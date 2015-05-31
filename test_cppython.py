@@ -43,9 +43,9 @@ class Test(unittest.TestCase):
             call.on_namespace_begin('inner_namespace'),
             call.on_typedef('IntType', 'int'),
             call.on_enum('EnumType', [
-                ('ENUM_START', 0L),
-                ('ENUM_MIDDLE', 1L),
-                ('ENUM_END', 3L)]),
+                ('ENUM_START', 0),
+                ('ENUM_MIDDLE', 1),
+                ('ENUM_END', 3)]),
             call.on_const_int('CONST_1', '1'),
             call.on_namespace_end('inner_namespace'),
             call.on_const_int('CONST_2', '0x0A'),

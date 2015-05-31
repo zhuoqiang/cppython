@@ -50,9 +50,10 @@ How to use
    - enums
    - marco constants
 
-#. run command ``python cppython.py the-header-files-for-export.hpp <additional c++ source files> path/to/module_name``
+#. run command ``python cppython.py -t header-file-for-export.hpp -s <C++ source files> -m path/to/module_name``
 #. after that you could find generated ``module_name`` files under ``path/to``. you could review and modify manually
 #. run command ``cd path/to && python setup.py`` to actually build the python extension module using cython
+#. For detail command line argument list, run ``python cppython.py -h``
   
 todo
 -----------
@@ -67,10 +68,9 @@ todo
 * support more than one constructor,right now it only export the first constructor
 
 
-
 How to run test
 ------------------
 
 *  ubuntu 64 and Mac are supported out of the box
-*  `mock`, `enum34` and `cython` need to be installed first
-*  run `./test.sh`   
+*  ``mock``, ``enum34`` and ``cython`` need to be installed first
+*  run ``./test.sh``   

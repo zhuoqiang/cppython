@@ -3,6 +3,7 @@
 
 '''Bring C++ classes to python
 '''
+from __future__ import print_function
 
 import sys
 import os
@@ -522,8 +523,9 @@ class PyxVisitor(BaseVisitor):
         parameters_list = ', '.join('{} {}'.format(self.get_use_type(t), n) for (t, n) in parameters)
         parameters_names = ', '.join(self.get_use_format(t, n) for (t, n) in parameters)
         
-        parameters_list = ', '.join(('self', parameters_list, '*l', '**kw'))
-        self.writeline('def __cinit__({}):', parameters_list)
+        # parameters_list = ', '.join(('self', parameters_list, '*l', '**kw'))
+        parameters_list = ', '.join(('self', parameters_list))
+        self.writeline('def __init__({}):', parameters_list)
         with indent(self):
             self.writeline('self._this = new {}.{}(<PyObject*>(self), {})',
                            self.import_proxy_name, proxy_name, parameters_names)
@@ -1105,8 +1107,8 @@ def main(argv):
     try:
         tu = parse_cpp_file(hpp_path)
     except LibclangError as e:
-        print 'ERROR: clang shared library not found, please download and place it in this directory: {}'.format(
-            os.path.dirname(clang.__file__))
+        print('ERROR: clang shared library not found, please download and place it in this directory: {}'.format(
+            os.path.dirname(clang.__file__)))
         return
         
     visitors = [v(module_name, directory) for v in
@@ -1114,8 +1116,8 @@ def main(argv):
     visitors.append(SetupVisitor(module_name, directory, cpp_files, include, args.library, library_dir, compile_flag))
     apply([tu.cursor], VisitorGroup(visitors))
     for v in visitors:
-        print 'generating {} ...'.format(v.file.name)
-    print 'done.'
+        print('generating {} ...'.format(v.file.name))
+    print('done.')
         
     
 if __name__ == '__main__':
