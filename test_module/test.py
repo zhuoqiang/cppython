@@ -57,8 +57,7 @@ class Test(unittest.TestCase):
             
         class D2(C2):
             def __init__(self):
-                C2.__init__(self, 10)
-                # super(C2, self).__init__(10)
+                super(D2, self).__init__(10)
             
             def pure_virtual_method(self):
                 return self.normal_method(10) + 10
@@ -79,7 +78,7 @@ class Test(unittest.TestCase):
         
         class D1(C1):
             def __init__(self):
-                C1.__init__(self, d2)
+                super(D1, self).__init__(d2)
             
             def virtual_method(self):
                 return 100

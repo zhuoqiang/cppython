@@ -1088,7 +1088,7 @@ def main(argv):
                             help='additional library directory')
     cmd_parser.add_argument('-m', '--module', metavar='module_dir/module', required=True,
                             help='target module output path and module name')
-    cmd_parser.add_argument('-c', '--compile-flag', metavar='"-O3"', nargs="*", default=[],
+    cmd_parser.add_argument('-c', '--compile-flag', metavar='" -O3"', nargs="*", default=[],
                             help='target module output path and module name')
     
     args = cmd_parser.parse_args(sys.argv[1:])
