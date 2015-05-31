@@ -974,7 +974,8 @@ class SetupVisitor(BaseVisitor):
     '''Generate setup file for building python extension
     '''
     
-    def __init__(self, name, directory='.', sources=None, include=[], library=[], library_dir=[], time=None, ):
+    def __init__(self, name, directory='.', sources=None, 
+                 include=[], library=[], library_dir=[], compile_flag=[], time=None, ):
         super(SetupVisitor, self).__init__(name, directory, time)
         self.file = open(os.path.join(self.directory, 'setup.py'), 'w')
         self.sources = []
@@ -982,9 +983,10 @@ class SetupVisitor(BaseVisitor):
             self.sources = sources
         
         self.sources = [os.path.relpath(i, self.directory) for i in self.sources]
-        self.include=include
-        self.library=library
-        self.library_dir=library_dir
+        self.include = include
+        self.library = library
+        self.library_dir = library_dir
+        self.compile_flag = compile_flag
             
     def on_file_begin(self, filename):
         self.filename = filename
@@ -1009,7 +1011,8 @@ extensions = [
         language = 'c++',
         include_dirs = {},
         libraries = {},
-        library_dirs = {}),
+        library_dirs = {},
+        extra_compile_args = {}),
 ]
 
 if __name__ == '__main__':
@@ -1020,7 +1023,7 @@ if __name__ == '__main__':
     setup(ext_modules=cythonize(extensions))
         ''', 
         self.banner, self.name, self.name, self.name, ', '.join("'{}'".format(i) for i in self.sources),
-        self.include, self.library, self.library_dir)
+        self.include, self.library, self.library_dir, self.compile_flag)
 
         self.file.close()
         
@@ -1083,6 +1086,8 @@ def main(argv):
                             help='additional library directory')
     cmd_parser.add_argument('-m', '--module', metavar='module_dir/module', required=True,
                             help='target module output path and module name')
+    cmd_parser.add_argument('-c', '--compile-flag', metavar='"-O3"', nargs="*", default=[],
+                            help='target module output path and module name')
     
     args = cmd_parser.parse_args(sys.argv[1:])
     
@@ -1093,9 +1098,9 @@ def main(argv):
     
     hpp_path = args.header[0]
     cpp_files = args.source
-    
     include = [os.path.abspath(i) for i in args.include]
     library_dir = [os.path.abspath(i) for i in args.library_dir]
+    compile_flag = [i.strip() for i in args.compile_flag]
     
     try:
         tu = parse_cpp_file(hpp_path)
@@ -1106,7 +1111,7 @@ def main(argv):
         
     visitors = [v(module_name, directory) for v in
                 (PxdVisitor, PyxVisitor, CppVisitor, HppVisitor, PxiVisitor, PxdProxyVisitor)]
-    visitors.append(SetupVisitor(module_name, directory, cpp_files, include, args.library, library_dir))
+    visitors.append(SetupVisitor(module_name, directory, cpp_files, include, args.library, library_dir, compile_flag))
     apply([tu.cursor], VisitorGroup(visitors))
     for v in visitors:
         print 'generating {} ...'.format(v.file.name)
