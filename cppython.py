@@ -18,8 +18,20 @@ import clang
 
 __author__ = 'ZHUO Qiang'
 __date__ = '2014-06-23 21:45'
-__version_info__ = (0, 2, 0)
+__version_info__ = (0, 3, 0)
 __version__ = '.'.join(str(i) for i in __version_info__)
+
+
+try:
+    unicode
+except:
+    unicode = str
+
+def u(s):
+    if isinstance(s, unicode):
+        return s
+    return s.decode('utf-8')
+
 
 # Assume clang lib is beside clang package
 Config.set_library_path(os.path.dirname(clang.__file__))
@@ -57,7 +69,7 @@ def get_comment(cursor):
 def get_literal(cursor):
     for t in cursor.get_tokens():
         if t.kind == TokenKind.LITERAL:
-            return t.spelling
+            return u(t.spelling)
             # return ast.literal_eval(t.spelling)
             
 
@@ -75,49 +87,49 @@ def is_const_int(type):
             
 def get_compound_typedef_name(compound_type, next_cursor):
     if (next_cursor and next_cursor.kind == CursorKind.TYPEDEF_DECL
-        and '{} {}'.format(compound_type, next_cursor.spelling) == next_cursor.underlying_typedef_type.spelling):
-        return next_cursor.spelling
+        and '{} {}'.format(compound_type, u(next_cursor.spelling)) == u(next_cursor.underlying_typedef_type.spelling)):
+        return u(next_cursor.spelling)
     
         
 def apply(children, visitor):
     lookahead_children = pairwise(children)
     for child, next_child in lookahead_children:
         if child.kind == CursorKind.TRANSLATION_UNIT:
-            filename = child.spelling
+            filename = u(child.spelling)
             visitor.on_file_begin(filename)
 
             CLANG_DEFAULT_ENTITIES = ('__int128_t', '__uint128_t', '__builtin_va_list')
-            children = (c for c in child.get_children() if c.spelling not in CLANG_DEFAULT_ENTITIES)
+            children = (c for c in child.get_children() if u(c.spelling) not in CLANG_DEFAULT_ENTITIES)
             apply(children, visitor)
             visitor.on_file_end()
 
         if child.kind == CursorKind.NAMESPACE and child.get_children():
-            visitor.on_namespace_begin(child.spelling)
+            visitor.on_namespace_begin(u(child.spelling))
             apply(child.get_children(), visitor)
-            visitor.on_namespace_end(child.spelling)
+            visitor.on_namespace_end(u(child.spelling))
 
         elif child.kind == CursorKind.TYPEDEF_DECL:
-            visitor.on_typedef(child.spelling, child.underlying_typedef_type.spelling)
+            visitor.on_typedef(u(child.spelling), u(child.underlying_typedef_type.spelling))
 
         elif child.kind == CursorKind.ENUM_DECL:
-            enum_typename = child.spelling
-            enum_constants = [(c.spelling, c.enum_value)
+            enum_typename = u(child.spelling)
+            enum_constants = [(u(c.spelling), c.enum_value)
                               for c in child.get_children()
                               if c.kind == CursorKind.ENUM_CONSTANT_DECL]
             if enum_constants:
                 visitor.on_enum(enum_typename, enum_constants)
 
         elif child.kind == CursorKind.VAR_DECL and is_const_int(child.type):
-            visitor.on_const_int(child.spelling, get_literal(child))
+            visitor.on_const_int(u(child.spelling), get_literal(child))
 
         elif child.kind == CursorKind.MACRO_DEFINITION:
-            name = child.spelling
+            name = u(child.spelling)
             if not name.startswith('_') and name not in ('OBJC_NEW_PROPERTIES',):
                 visitor.on_macro_value(name, get_literal(child))
 
         elif child.kind in (CursorKind.STRUCT_DECL, CursorKind.CLASS_DECL):
             compound_name = 'struct' if child.kind == CursorKind.STRUCT_DECL else 'class'
-            name = child.spelling
+            name = u(child.spelling)
             typedef = False
             if not name:
                 name = get_compound_typedef_name(compound_name, next_child)
@@ -144,15 +156,15 @@ def apply(children, visitor):
 
         elif child.kind == CursorKind.FIELD_DECL:
             if child.access_specifier.name != 'PRIVATE':
-                name = child.spelling
-                visitor.on_field(name, child.type.spelling)
+                name = u(child.spelling)
+                visitor.on_field(name, u(child.type.spelling))
 
         elif child.kind == CursorKind.CXX_METHOD:
             if child.access_specifier.name != 'PRIVATE':
-                name = child.spelling
+                name = u(child.spelling)
                 access = child.access_specifier.name.lower()
-                return_type = child.result_type.spelling
-                parameters = [(i.type.spelling, i.spelling) for i in child.get_arguments()]
+                return_type = u(child.result_type.spelling)
+                parameters = [(u(i.type.spelling), u(i.spelling)) for i in child.get_arguments()]
                 method_type = ''
                 if child.is_static_method():
                     method_type = 'static'
@@ -163,14 +175,14 @@ def apply(children, visitor):
                 visitor.on_method(name, return_type, parameters, access, method_type)
                 
         elif child.kind == CursorKind.FUNCTION_DECL:
-            name = child.spelling
-            return_type = child.result_type.spelling
-            parameters = [(i.type.spelling, i.spelling) for i in child.get_arguments()]
+            name = u(child.spelling)
+            return_type = u(child.result_type.spelling)
+            parameters = [(u(i.type.spelling), u(i.spelling)) for i in child.get_arguments()]
             visitor.on_function(name, return_type, parameters)
             
         elif child.kind == CursorKind.CONSTRUCTOR:
-            name = child.spelling
-            parameters = [(i.type.spelling, i.spelling) for i in child.get_arguments()]        
+            name = u(child.spelling)
+            parameters = [(u(i.type.spelling), u(i.spelling)) for i in child.get_arguments()]        
             visitor.on_constructor(name, parameters)
             
         else:
@@ -891,7 +903,9 @@ class PxiVisitor(BaseVisitor):
         self.writeline('import types')
         self.writeline('cdef public api bool cppython_has_method(object self, const char* method_name):')
         with indent(self):
-            self.writeline('method = getattr(self, method_name, None)')
+            # python3 need method name to be Unicode, which python2 could handle as well
+            # we encode the method name to unicode
+            self.writeline('method = getattr(self, method_name.decode("utf-8"), None)')
             self.writeline('return isinstance(method, types.MethodType)')
         
     def on_file_end(self):

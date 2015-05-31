@@ -66,8 +66,20 @@ from __future__ import print_function
 
 from ctypes import *
 import collections
+import sys
 
 import clang.enumerations
+
+try:
+    unicode
+except:
+    unicode = str
+
+def b(s):
+    if isinstance(s, unicode):
+        return s.encode('utf-8')
+    return s
+    
 
 # ctypes doesn't implicitly convert c_void_p to the appropriate wrapper
 # object. This is a problem, because it means that from_parameter will see an
@@ -451,7 +463,7 @@ class TokenGroup(object):
 
         token_group = TokenGroup(tu, tokens_memory, tokens_count)
 
-        for i in xrange(0, count):
+        for i in range(0, count):
             token = Token()
             token.int_data = tokens_array[i].int_data
             token.ptr_data = tokens_array[i].ptr_data
@@ -2247,7 +2259,7 @@ class TranslationUnit(ClangObject):
 
         args_array = None
         if len(args) > 0:
-            args_array = (c_char_p * len(args))(* args)
+            args_array = (c_char_p * len(args))(*(b(i) for i in args))
 
         unsaved_array = None
         if len(unsaved_files) > 0:
@@ -2260,9 +2272,10 @@ class TranslationUnit(ClangObject):
                 unsaved_array[i].contents = contents
                 unsaved_array[i].length = len(contents)
 
-        ptr = conf.lib.clang_parseTranslationUnit(index, filename, args_array,
+        ptr = conf.lib.clang_parseTranslationUnit(index, b(filename), args_array,
                                     len(args), unsaved_array,
                                     len(unsaved_files), options)
+
 
         if not ptr:
             raise TranslationUnitLoadError("Error parsing translation unit.")
@@ -2626,7 +2639,7 @@ class CompileCommand(object):
         Invariant : the first argument is the compiler executable
         """
         length = conf.lib.clang_CompileCommand_getNumArgs(self.cmd)
-        for i in xrange(length):
+        for i in range(length):
             yield conf.lib.clang_CompileCommand_getArg(self.cmd, i)
 
 class CompileCommands(object):
@@ -3388,7 +3401,7 @@ def register_functions(lib, ignore_errors):
     def register(item):
         return register_function(lib, item, ignore_errors)
 
-    map(register, functionList)
+    [register(i) for i in functionList]
 
 class Config:
     library_path = None

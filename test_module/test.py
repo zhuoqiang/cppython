@@ -14,6 +14,20 @@ __version__ = '.'.join(str(i) for i in __version_info__)
 from foo import *
 import unittest
 
+try:
+    unicode
+except:
+    unicode = str
+
+def b(s):
+    if isinstance(s, unicode):
+        return s.encode('utf-8')
+    return s
+
+
+if not hasattr(unittest.TestCase, 'assertRaisesRegex'):
+    unittest.TestCase.assertRaisesRegex = unittest.TestCase.assertRaisesRegexp
+
 class Test(unittest.TestCase):
     def setUp(self):
         pass
@@ -30,13 +44,13 @@ class Test(unittest.TestCase):
         self.assertEqual(DEFINE_1, '1')
 
     def test_struct(self):
-        s1 = build_s1(1, "ab")
+        s1 = build_s1(1, b("ab"))
         self.assertEqual(s1.a, 1)        
-        self.assertEqual(s1.b, "ab")
+        self.assertEqual(s1.b, b("ab"))
 
-        s1.b = "123456789"
-        self.assertEqual(s1.b, "1234567")        
-        self.assertEqual(s1.b[0], "1")        
+        s1.b = b("123456789")
+        self.assertEqual(s1.b, b("1234567"))        
+        self.assertTrue(s1.b[0] in (b('1'), ord('1')))
 
         use_s1(s1)
         self.assertEqual(s1.a, 1024)
@@ -48,7 +62,7 @@ class Test(unittest.TestCase):
         c2 = C2(1)
         self.assertEqual(c2.normal_method(1), 3)
 
-        with self.assertRaisesRegexp(RuntimeError, '.*?::pure_virtual_method not implemented'):
+        with self.assertRaisesRegex(RuntimeError, str('.*?::pure_virtual_method not implemented')):
             c2.pure_virtual_method()
 
         self.assertEqual(c2.static_method(), 4)
@@ -68,7 +82,7 @@ class Test(unittest.TestCase):
         c1 = C1(d2)
         self.assertEqual(c1.virtual_method(), 1)
         self.assertEqual(c1.virtual_method_call_other(), 32)
-        s1 = build_s1(1, "ab")
+        s1 = build_s1(1, b("ab"))
         self.assertEqual(s1.a, 1)
         self.assertEqual(c1.on_struct(s1), 1)
         self.assertEqual(s1.a, 111)

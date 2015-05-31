@@ -16,7 +16,9 @@ extensions = [
         sources = ["foo.pyx", 'for_test.cpp', 'foo_cppython.cpp'],
         include_dirs = [],
         libraries = [],
-        library_dirs = []),
+        library_dirs = [],
+        extra_compile_args = ['-Wno-unused-function']
+    ),
 ]
 
 
