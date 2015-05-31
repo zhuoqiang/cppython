@@ -990,15 +990,12 @@ class SetupVisitor(BaseVisitor):
     '''Generate setup file for building python extension
     '''
     
-    def __init__(self, name, directory='.', sources=None, 
+    def __init__(self, name, directory='.', sources=[], 
                  include=[], library=[], library_dir=[], compile_flag=[], time=None, ):
         super(SetupVisitor, self).__init__(name, directory, time)
         self.file = open(os.path.join(self.directory, 'setup.py'), 'w')
-        self.sources = []
-        if sources:
-            self.sources = sources
-        
-        self.sources = [os.path.relpath(i, self.directory) for i in self.sources]
+        self.sources = sources
+        self.sources = [os.path.relpath(os.path.abspath(i), self.directory) for i in self.sources]
         self.include = include
         self.library = library
         self.library_dir = library_dir
