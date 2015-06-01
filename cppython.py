@@ -33,6 +33,20 @@ def u(s):
     return s.decode('utf-8')
 
 
+def parse_type(t):
+    types = t.split()
+    pointer = ''
+    quanlify = ''
+    if types[-1] == '*':
+        pointer = '*'
+        types.pop()
+    if len(types) > 1:
+        quanlify = ''.join(types[:-1])
+    # base_type, quanlify, pointer
+    return types[-1], quanlify, pointer
+    
+    
+
 # Assume clang lib is beside clang package
 Config.set_library_path(os.path.dirname(clang.__file__))
 
@@ -946,24 +960,16 @@ class PxiVisitor(BaseVisitor):
         pass
         
     def get_use_format(self, typename, name):
-        is_pointer = typename.endswith('*')
+        is_pointer = typename.endswith('*')        
         typename = typename.split()[0]
         if typename in self.pod_types or typename in self.class_types:
             return '{}()._from_c_({}{})'.format(typename, name, '[0]' if is_pointer else '')
         return name
         
     def get_use_type(self, typename):
-        is_pointer = (typename[-1] == '*')
-        if is_pointer:
-            # remove pointer *
-            pure_typename = typename[:-1]
-            
-        # remove possible const, etc
-        pure_typename = typename.split()[-1] 
-        
-        #TODO, add const if necessary
-        if pure_typename in self.pod_types or pure_typename in self.class_types:
-            return '{}.{}{}'.format(self.import_name, pure_typename, '*' if is_pointer else '')
+        unquanlified_type, quanlify, pointer = parse_type(typename)
+        if unquanlified_type in self.pod_types or unquanlified_type in self.class_types:
+            return '{}.{}{}'.format(self.import_name, unquanlified_type, pointer)
         return typename
         
     def on_method(self, name, return_type, parameters, access, method_type):        
@@ -971,7 +977,6 @@ class PxiVisitor(BaseVisitor):
             return
             
         parameters = [(split_namespace_name(t)[0], n) for (t, n) in parameters]
-        print(parameters)
         parameters_list = ', '.join('{} {}'.format(self.get_use_type(t), n) for (t, n) in parameters)
         parameters_names = ', '.join(self.get_use_format(t, n) for (t, n) in parameters)
         return_name, namespaces = split_namespace_name(return_type)
