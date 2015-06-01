@@ -565,7 +565,7 @@ class PyxVisitor(BaseVisitor):
                     self.writeline('return bytes(self._this.{})[:sizeof(self._this.{})]', name, name)
                 self.writeline('def __set__(self, value):')
                 with indent(self):
-                    self.writeline('cdef int length = min(sizeof(self._this.{}), len(value))', name)
+                    self.writeline('cdef size_t length = min(sizeof(self._this.{}), len(value))', name)
                     self.writeline('libc.string.memcpy(self._this.{}, <char*>(value), length)',name)
             else:
                 self.writeline('def __get__(self):')
