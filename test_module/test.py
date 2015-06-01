@@ -61,6 +61,7 @@ class Test(unittest.TestCase):
     def test_class(self):
         c2 = C2(1)
         self.assertEqual(c2.normal_method(1), 3)
+        self.assertEqual(c2.char_pointer_method(1, b("hello")), b("ello"))
 
         with self.assertRaisesRegex(RuntimeError, str('.*?::pure_virtual_method not implemented')):
             c2.pure_virtual_method()

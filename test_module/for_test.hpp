@@ -60,6 +60,10 @@ namespace for_test_namespace {
             return 1 + n + _a;
         }
         
+        virtual char const* char_pointer_method(int n, const char* p) {
+            return p+n;
+        }
+        
         static int static_method() {
             return 4;
         }

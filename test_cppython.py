@@ -29,7 +29,7 @@ class Test(unittest.TestCase):
         apply([self.tu.cursor], mock)
 
         platform_macro = []
-        if sys.platform == 'linux2':
+        if sys.platform in ('linux2', 'linux'):
             platform_macro = [
                 call.on_macro_value('unix', '1'),
                 call.on_macro_value('linux', '1'),
@@ -70,6 +70,7 @@ class Test(unittest.TestCase):
             call.on_constructor('C2', [('int', 'a')]),
             call.on_method('pure_virtual_method', 'int', [], 'public', 'pure'),
             call.on_method('normal_method', 'int', [('int', 'n')], 'public', ''),
+            call.on_method('char_pointer_method', 'const char *', [('int', 'n'), ('const char *', 'p')], 'public', 'virtual'),
             call.on_method('static_method', 'int', [], 'public', 'static'),
             call.on_class_end('C2'),
             
