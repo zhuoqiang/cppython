@@ -54,6 +54,7 @@ namespace for_test_namespace {
         C2(int a)
             : _a(a)
         {}
+        
         virtual int pure_virtual_method() = 0;
         
         int normal_method(int n) {
@@ -100,6 +101,11 @@ namespace for_test_namespace {
     inline int call_c1_virtual_method(C1* c1)
     {
         return c1->virtual_method();
+    }
+    
+    inline const char* call_c1_char_method(C2* o, int n, char const* p)
+    {
+        return o->char_pointer_method(n, p);
     }
     
 }

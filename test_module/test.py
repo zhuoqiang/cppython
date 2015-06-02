@@ -62,6 +62,9 @@ class Test(unittest.TestCase):
         c2 = C2(1)
         self.assertEqual(c2.normal_method(1), 3)
         self.assertEqual(c2.char_pointer_method(1, b("hello")), b("ello"))
+        
+        # keyword parameter
+        self.assertEqual(c2.char_pointer_method(p=b("hello"), n=2), b("llo"))        
 
         with self.assertRaisesRegex(RuntimeError, str('.*?::pure_virtual_method not implemented')):
             c2.pure_virtual_method()
@@ -101,7 +104,64 @@ class Test(unittest.TestCase):
         d1 = D1()
         self.assertEqual(d1.virtual_method(), 100)
         self.assertEqual(call_c1_virtual_method(d1), 100)
-        self.assertEqual(d1.virtual_method_call_other(), 32)
+        
+        
+    def test_keyword_parameter(self):
+        test_self = self
+        
+        call_count = {'d':0}
+        
+        class Revert(C2):
+            def __init__(self):
+                super(Revert, self).__init__(10)
+            
+            def char_pointer_method(self, p, n):
+                call_count['d'] = 1
+                test_self.assertEqual(p, b"hello")
+                test_self.assertEqual(n, 1)
+                # TODO
+                # could not call base class method
+                # super(Revert, self).char_pointer_method(p, n)
+                # because, it is proxy class and it will call derived method which cause infinit loop
+                # we need to find a way to call super class (the proxy calss's super class)
+                # maybe wrapper it in another function, and call explicity: 
+                # super(Revert, self).super_char_pointer_method(p, n)
+                return p[n+1:]
+            
+        revert = Revert()
+        self.assertEqual(call_c1_char_method(revert, 1, b'hello'), b"llo")
+        self.assertEqual(call_count['d'], 1)
+        
+        class Named(C2):
+            def __init__(self):
+                super(Named, self).__init__(10)
+            
+            def char_pointer_method(self, *l, **kw):
+                call_count['d'] = 2
+                test_self.assertTupleEqual(l, ())
+                test_self.assertDictEqual(kw, {'p':b'hello', 'n':1})
+                return b'world'
+            
+        named = Named()
+        self.assertEqual(call_c1_char_method(named, 1, b'hello'), b'world')
+        self.assertEqual(call_count['d'], 2)
+        
+        class Partial(C2):
+            def __init__(self):
+                super(Partial, self).__init__(10)
+            
+            def char_pointer_method(self, p, *l, **kw):
+                call_count['d'] = 3
+                test_self.assertEqual(p, b"hello")
+                test_self.assertTupleEqual(l, ())
+                test_self.assertDictEqual(kw, {'n':1})
+                return b'partial'
+            
+        partial = Partial()
+        self.assertEqual(call_c1_char_method(partial, 1, b'hello'), b'partial')
+        self.assertEqual(call_count['d'], 3)
+        
+        
                 
 if __name__ == '__main__':
     unittest.main()

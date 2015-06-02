@@ -85,7 +85,8 @@ class Test(unittest.TestCase):
             call.on_class_end('C1'),
 
             call.on_function('call_c1_virtual_method', 'int', [('for_test_namespace::C1 *', 'c1')]),
-            
+            call.on_function('call_c1_char_method', 'const char *', [('for_test_namespace::C2 *', 'o'), 
+                                                                     ('int', 'n'), ('const char *', 'p')]),            
             call.on_namespace_end('for_test_namespace'),
             call.on_const_int('CONST_3', '3'),
             call.on_file_end(),

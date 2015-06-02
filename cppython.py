@@ -978,8 +978,9 @@ class PxiVisitor(BaseVisitor):
             
         parameters = [(split_namespace_name(t)[0], n) for (t, n) in parameters]
         parameters_list = ', '.join('{} {}'.format(self.get_use_type(t), n) for (t, n) in parameters)
-        parameters_names = (self.get_use_format(t, n) for (t, n) in parameters)
-        parameters_names = ', '.join('{0}={0}'.format(name) for name in parameters_names)
+        parameters_names = [(n, self.get_use_format(t, n)) for (t, n) in parameters]
+        # make it keyword parameter
+        parameters_names = ', '.join('{}={}'.format(name[0], name[1]) for name in parameters_names)
         return_name, namespaces = split_namespace_name(return_type)
         return_name = self.get_use_type(return_name)
         
