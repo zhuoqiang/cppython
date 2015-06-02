@@ -478,7 +478,7 @@ class PyxVisitor(BaseVisitor):
         
         self.writeline('# distutils: language = c++')
         # make python3 string convert to const char* automatically on interface
-        self.writeline('# cython: c_string_type=str, c_string_encoding=ascii')
+        # self.writeline('# cython: c_string_type=str, c_string_encoding=ascii')
         self.writeline("'''{}'''", self.banner)
         self.writeline('cimport {}', self.import_name)
         self.writeline('cimport {}', self.import_proxy_name)
@@ -1008,7 +1008,7 @@ class SetupVisitor(BaseVisitor):
     '''
     
     def __init__(self, name, directory='.', sources=[], 
-                 include=[], library=[], library_dir=[], compile_flag=[], link_flag=[], time=None, ):
+                 include=[], library=[], library_dir=[], compile_flag=[], link_flag=[], objects=[], time=None, ):
         super(SetupVisitor, self).__init__(name, directory, time)
         self.file = open(os.path.join(self.directory, 'setup.py'), 'w')
         self.sources = sources
@@ -1018,6 +1018,7 @@ class SetupVisitor(BaseVisitor):
         self.library_dir = library_dir
         self.compile_flag = compile_flag
         self.link_flag = link_flag
+        self.objects = objects
             
     def on_file_begin(self, filename):
         self.filename = filename
@@ -1039,6 +1040,7 @@ extensions = [
     Extension(
         "{}",
         sources = [os.path.relpath(i, HERE) for i in ['{}.pyx', '{}_cppython.cpp', {}]],
+        extra_objects = {},
         language = 'c++',
         include_dirs = {},
         libraries = {},
@@ -1056,7 +1058,7 @@ if __name__ == '__main__':
     setup(ext_modules=cythonize(extensions))
         ''', 
         self.banner, self.name, self.name, self.name, ', '.join("'{}'".format(i) for i in self.sources),
-        self.include, self.library, self.library_dir, self.compile_flag, self.link_flag)
+        self.objects, self.include, self.library, self.library_dir, self.compile_flag, self.link_flag)
 
         self.file.close()
         
@@ -1123,6 +1125,8 @@ def main(argv):
                             help='specify extra compile flag, with extra space before -, like this: " -O3"')
     cmd_parser.add_argument('-k', '--link-flag', metavar='" -O3"', nargs="*", default=[],
                             help='specify extra link flag, with extra space before -, like this: " -O3"')
+    cmd_parser.add_argument('-o', '--object', metavar='path/to/a.so"', nargs="*", default=[],
+                            help='specify extra objects to link against')
     
     args = cmd_parser.parse_args(sys.argv[1:])
     
@@ -1148,7 +1152,7 @@ def main(argv):
     visitors = [v(module_name, directory) for v in
                 (PxdVisitor, PyxVisitor, CppVisitor, HppVisitor, PxiVisitor, PxdProxyVisitor)]
     visitors.append(SetupVisitor(module_name, directory, cpp_files, include, 
-                                 args.library, library_dir, compile_flag, link_flag))
+                                 args.library, library_dir, compile_flag, link_flag, args.object))
     apply([tu.cursor], VisitorGroup(visitors))
     for v in visitors:
         print('generating {} ...'.format(v.file.name))
