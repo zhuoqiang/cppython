@@ -477,6 +477,8 @@ class PyxVisitor(BaseVisitor):
         self.import_proxy_name = self.name + '_cppython'
         
         self.writeline('# distutils: language = c++')
+        # make python3 string convert to const char* automatically on interface
+        self.writeline('# cython: c_string_type=str, c_string_encoding=ascii')
         self.writeline("'''{}'''", self.banner)
         self.writeline('cimport {}', self.import_name)
         self.writeline('cimport {}', self.import_proxy_name)
