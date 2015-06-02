@@ -1006,7 +1006,7 @@ class SetupVisitor(BaseVisitor):
     '''
     
     def __init__(self, name, directory='.', sources=[], 
-                 include=[], library=[], library_dir=[], compile_flag=[], time=None, ):
+                 include=[], library=[], library_dir=[], compile_flag=[], link_flag=[], time=None, ):
         super(SetupVisitor, self).__init__(name, directory, time)
         self.file = open(os.path.join(self.directory, 'setup.py'), 'w')
         self.sources = sources
@@ -1015,6 +1015,7 @@ class SetupVisitor(BaseVisitor):
         self.library = library
         self.library_dir = library_dir
         self.compile_flag = compile_flag
+        self.link_flag = link_flag
             
     def on_file_begin(self, filename):
         self.filename = filename
@@ -1040,7 +1041,9 @@ extensions = [
         include_dirs = {},
         libraries = {},
         library_dirs = {},
-        extra_compile_args = {}),
+        extra_compile_args = {},
+        extra_link_args = {},
+        ),
 ]
 
 if __name__ == '__main__':
@@ -1051,7 +1054,7 @@ if __name__ == '__main__':
     setup(ext_modules=cythonize(extensions))
         ''', 
         self.banner, self.name, self.name, self.name, ', '.join("'{}'".format(i) for i in self.sources),
-        self.include, self.library, self.library_dir, self.compile_flag)
+        self.include, self.library, self.library_dir, self.compile_flag, self.link_flag)
 
         self.file.close()
         
@@ -1115,7 +1118,9 @@ def main(argv):
     cmd_parser.add_argument('-m', '--module', metavar='module_dir/module', required=True,
                             help='target module output path and module name')
     cmd_parser.add_argument('-c', '--compile-flag', metavar='" -O3"', nargs="*", default=[],
-                            help='target module output path and module name')
+                            help='specify extra compile flag, with extra space before -, like this: " -O3"')
+    cmd_parser.add_argument('-k', '--link-flag', metavar='" -O3"', nargs="*", default=[],
+                            help='specify extra link flag, with extra space before -, like this: " -O3"')
     
     args = cmd_parser.parse_args(sys.argv[1:])
     
@@ -1129,6 +1134,7 @@ def main(argv):
     include = [os.path.abspath(i) for i in args.include]
     library_dir = [os.path.abspath(i) for i in args.library_dir]
     compile_flag = [i.strip() for i in args.compile_flag]
+    link_flag = [i.strip() for i in args.link_flag]
     
     try:
         tu = parse_cpp_file(hpp_path)
@@ -1139,7 +1145,8 @@ def main(argv):
         
     visitors = [v(module_name, directory) for v in
                 (PxdVisitor, PyxVisitor, CppVisitor, HppVisitor, PxiVisitor, PxdProxyVisitor)]
-    visitors.append(SetupVisitor(module_name, directory, cpp_files, include, args.library, library_dir, compile_flag))
+    visitors.append(SetupVisitor(module_name, directory, cpp_files, include, 
+                                 args.library, library_dir, compile_flag, link_flag))
     apply([tu.cursor], VisitorGroup(visitors))
     for v in visitors:
         print('generating {} ...'.format(v.file.name))
