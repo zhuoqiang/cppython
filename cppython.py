@@ -455,6 +455,10 @@ class PxdProxyVisitor(BaseVisitor):
         
         self.writeline('{} {}({}) except +', return_name, name, parameters_list)
         
+        # make c++ base class normal virtual method accessble from python sub class
+        # if method_type == 'virtual' and method_type != 'pure':
+        #     self.writeline('{} super_{}({}) except +', return_name, name, parameters_list)            
+        
     def on_function(self, name, return_type, parameters):
         pass
         
@@ -774,6 +778,18 @@ private:
         if method_type in ('pure', 'virtual'):
             parameters_list = ', '.join('{} {}'.format(t, n) for (t, n) in parameters)
             self.writeline('{} {}({});', return_type, name, parameters_list)
+
+            # if method_type == 'virtual' and method_type != 'pure':
+            #     # make base c++ class normal virtual method accessable from python sub class
+            #     # under another name : super_xxx
+            #     self.writeline('{} super_{}({})', return_type, name, parameters_list)
+            #     self.writeline('{{')
+            #     parameters_name = ', '.join(n for (t, n) in parameters)
+            #     with indent(self):
+            #         self.writeline('return BaseClassType::{}({});', name, parameters_name)
+            #     self.writeline('}}')
+            #     self.writeline('')
+            
         
     def on_function(self, name, return_type, parameters):
         pass
@@ -869,7 +885,7 @@ CppythonProxyBase::~CppythonProxyBase()
             self.writeline('{} {}::{}({})', return_type, self.class_name, name, parameters_list)
             self.writeline('{{')
             with indent(self):
-                self.writeline('bool overrided = cppython_has_method(this->Self(), "{}");', name)
+                self.writeline('bool const overrided = cppython_has_method(this->Self(), "{}");', name)
                 self.writeline('if (overrided) {{')
                 with indent(self):
                     if return_type == 'void':
@@ -917,7 +933,7 @@ class PxiVisitor(BaseVisitor):
 
         self.writeline("'''{}'''", self.banner)        
         self.writeline('import types')
-        self.writeline('cdef public api bool cppython_has_method(object self, const char* method_name):')
+        self.writeline('cdef public api bool cppython_has_method(object self, const char* method_name) with gil:')
         with indent(self):
             # python3 need method name to be Unicode, which python2 could handle as well
             # we encode the method name to unicode
@@ -987,7 +1003,7 @@ class PxiVisitor(BaseVisitor):
         return_name = self.get_use_type(return_name)
         
         parameters_list = ', '.join(['object self', parameters_list])
-        self.writeline('cdef public api {} {}_{}_proxy_call({}):',
+        self.writeline('cdef public api {} {}_{}_proxy_call({}) with gil:',
                        return_name, self.class_name,
                        name, parameters_list)
         
