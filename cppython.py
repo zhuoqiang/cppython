@@ -818,6 +818,13 @@ class CppVisitor(BaseVisitor):
 #include <Python.h>
 #include <stdexcept>
 
+inline bool CallOnce()
+{
+    PyEval_InitThreads();
+    return true;
+}
+static bool const callOnce = CallOnce();
+        
 CppythonProxyBase::CppythonProxyBase(PyObject* self)
     : self_(self)
 {
@@ -827,12 +834,12 @@ CppythonProxyBase::CppythonProxyBase(PyObject* self)
     if (import_%s()) {
         throw std::runtime_error("could not import python extension module");
     } 
-    Py_XINCREF(self_);
+    Py_INCREF(self_);
 }
 
 CppythonProxyBase::~CppythonProxyBase()
 {
-    Py_XDECREF(self_);
+    Py_DECREF(self_);
 }
 
 ''' % self.name)
