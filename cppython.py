@@ -278,6 +278,9 @@ class PxdVisitor(BaseVisitor):
         self.writeline("'''{}'''", self.banner)
         self.writeline('from libcpp cimport bool')
         self.writeline('from cpython.ref cimport PyObject')
+        
+        # "nogil" quanlifier marks all entities (function, member function) nogil
+        # so that they could be called "with nogil:" later
         self.writeline('cdef extern from "{}" nogil:', self.header_file_path)
         self.reset_indent(1)
         self.content_after_begin = False
@@ -602,17 +605,21 @@ class PyxVisitor(BaseVisitor):
         parameters_list = 'self, ' + ', '.join('{} {}'.format(self.get_use_type(t), n) for (t, n) in parameters)
         parameters_names = ', '.join(self.get_use_format(t, n) for (t, n) in parameters)
         return_name, namespaces = split_namespace_name(return_type)
-            
         self.writeline('def {}({}):', name, parameters_list)
         with indent(self):
+            # using with nogil release the GIL when deligate to C/C++ funciton
+            # which could help on blocking/IO method but may potentially decrease simply method
+            # need some test on this
+            self.writeline('with nogil:')
+            with indent(self):
+                ret_val = '' if return_name == 'void' else 'ret = '
+                self.writeline('{}self._this.{}({})', ret_val, name, parameters_names)
+            
             if return_name in self.pod_types:
-                self.writeline('return {}()._from_c_(self._this..{}({}))', return_name, name, parameters_names)
-            else:
-                return_ = 'return '
-                if return_name == 'void':
-                    return_= ''
-                self.writeline('{}self._this.{}({})', return_, name, parameters_names)                
-        
+                self.writeline('return {}()._from_c_(ret)', return_name)
+            elif return_name != 'void':
+                self.writeline('return ret')
+                
                 
     def get_use_format(self, typename, name):
         is_pointer = typename[-1] == '*'
@@ -653,16 +660,17 @@ class PyxVisitor(BaseVisitor):
         self.writeline('cpdef {}({}):', name, parameters_list)
         
         with indent(self):
-            if return_name in self.pod_types:
-                self.writeline('return {}()._from_c_({}.{}({}))', return_name, self.import_name, name, parameters_names)
-            else:
-                return_ = 'return '
-                if return_name == 'void':
-                    return_= ''
-                self.writeline('{}{}.{}({})', return_, self.import_name, name, parameters_names)                
-        
+            self.writeline('with nogil:')
+            with indent(self):
+                ret_val = '' if return_name == 'void' else 'ret = '
+                self.writeline('{}{}.{}({})', ret_val, self.import_name, name, parameters_names)
             
+            if return_name in self.pod_types:
+                self.writeline('return {}()._from_c_(ret)', return_name)
+            elif return_name != 'void':
+                self.writeline('return ret')
 
+                
 class HppVisitor(BaseVisitor):
     '''Generate C++ header file wrapping C++ non pod classes for use in python
     '''

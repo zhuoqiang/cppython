@@ -67,6 +67,7 @@ class Test(unittest.TestCase):
             call.on_function('use_s1_pointer', 'void', [('for_test_namespace::S1 *', 's1')]),
             
             call.on_class_begin('class', 'C2', False),
+            call.on_method('void_method', 'void', [], 'public', ''),
             call.on_constructor('C2', [('int', 'a')]),
             call.on_method('pure_virtual_method', 'int', [], 'public', 'pure'),
             call.on_method('normal_method', 'int', [('int', 'n')], 'public', ''),
@@ -87,6 +88,7 @@ class Test(unittest.TestCase):
             call.on_function('call_c1_virtual_method', 'int', [('for_test_namespace::C1 *', 'c1')]),
             call.on_function('call_c1_char_method', 'const char *', [('for_test_namespace::C2 *', 'o'), 
                                                                      ('int', 'n'), ('const char *', 'p')]),            
+            call.on_function('void_fun', 'void', []),
             call.on_namespace_end('for_test_namespace'),
             call.on_const_int('CONST_3', '3'),
             call.on_file_end(),

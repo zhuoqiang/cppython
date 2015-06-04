@@ -51,6 +51,8 @@ namespace for_test_namespace {
     class C2
     {
     public:
+        void void_method() {}
+        
         C2(int a)
             : _a(a)
         {}
@@ -108,6 +110,9 @@ namespace for_test_namespace {
         return o->char_pointer_method(n, p);
     }
     
+    inline void void_fun()
+    {
+    }
 }
 
 const long long CONST_3 = 3;
