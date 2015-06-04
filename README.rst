@@ -74,3 +74,45 @@ How to run test
 *  ubuntu 64 and Mac are supported out of the box
 *  ``mock``, ``enum34`` and ``cython`` need to be installed first
 *  run ``./test.sh``   
+
+
+Python GIL
+-----------------
+
+if C extension spawn threads, you must call ``PyEval_InitThreads`` at least once in the main thread. 
+What it does is init GIL and aquire it. So that python itself could be thread safe running any python code.
+
+In child thread any time you want to manipulate Python objects, make sure to call pair ``PyGILState_Ensure(), PyGILState_Release()`` to get GIL and release it. There API is safe to call recursively.
+
+If you would like to call some non-Python/c blocking code (like ``Join()``), you could use ``PyEval_SaveThread() PyEval_RestoreThread()`` pair to release GIL and re get it
+
+In general situations, the C library needs to call ``PyEval_InitThreads()`` to gain GIL before spawning any thread that invokes python callbacks. And the callbacks need to be surrounded with ``PyGILState_Ensure()`` and ``PyGILState_Release()`` to ensure safe execution.
+
+However, if the C library is running within the context of, say, a python C extension, then there are special cases where it is safe to omit GIL manipulation at all if the sub thread execuation is enclosed by the main thread.
+
+
+Cython GIL
+____________________
+
+export C/C++ all marked as ``nogil`` to tell cython that they are safe to call ``with nogil``
+
+There are 3 ways to mark ``nogil``, they are identical
+
+* ``cdef extern from "export.hpp" nogil:`` nogil for all entity inside ``export.hpp``
+
+* ``cdef cppclass SomeClass(BaseClass) nogil:`` nogil for all class members
+
+* ``void some_member_function(const char * arg) nogil except +`` nogil for a single member
+
+When calling, it could be invoke without gil explicitly:
+
+        with nogil:
+            self._this.register_front(address)
+
+            
+Notice that without ``with nogil:``, the function still called with GIL wheather or not it has been marked as ``nogil``            
+if you call non ``nogil`` quanlifier member inside ``with nogil:`` scope, cython will report error message
+
+``Calling gil-requiring function not allowed without gil``
+
+When called ``with nogil:``, the generated code will have ``PyEval_SaveThread() PyEval_RestoreThread()`` pair enclosed the call.
