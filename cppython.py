@@ -814,17 +814,20 @@ class CppVisitor(BaseVisitor):
         self.writeline("// {}", self.banner)
         self.writeline('#include "{}"', self.header_file_path)
         self.writeline('#include "{}_api.h"', self.name)
+        # TODO, make PyEval_InitThreads optional cause it slows down single thread application
         self.file.write('''
 #include <Python.h>
 #include <stdexcept>
 
-inline bool CallOnce()
-{
-    PyEval_InitThreads();
-    return true;
+namespace {
+    inline bool PyInitThreads()
+    {
+        PyEval_InitThreads();
+        return true;
+    }
+    static bool const callOnce = PyInitThreads();
 }
-static bool const callOnce = CallOnce();
-        
+
 CppythonProxyBase::CppythonProxyBase(PyObject* self)
     : self_(self)
 {
