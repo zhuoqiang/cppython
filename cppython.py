@@ -492,7 +492,14 @@ class PyxVisitor(BaseVisitor):
         self.writeline('cimport libc.string')
         self.writeline('from libcpp cimport bool')
         self.writeline('from cpython.ref cimport PyObject')
-
+        
+        # for any external C/C++ thread
+        # TODO, make PyEval_InitThreads optional cause it slows down single thread application
+        self.writeline('cdef extern from "Python.h":')
+        with indent(self):
+            self.writeline('void PyEval_InitThreads()')
+        self.writeline('PyEval_InitThreads()')
+        
         # self.writeline('from cython cimport view')
         self.writeline('import enum # for python 2.x install enum34 package')
         self.writeline()
@@ -822,19 +829,9 @@ class CppVisitor(BaseVisitor):
         self.writeline("// {}", self.banner)
         self.writeline('#include "{}"', self.header_file_path)
         self.writeline('#include "{}_api.h"', self.name)
-        # TODO, make PyEval_InitThreads optional cause it slows down single thread application
         self.file.write('''
 #include <Python.h>
 #include <stdexcept>
-
-namespace {
-    inline bool PyInitThreads()
-    {
-        PyEval_InitThreads();
-        return true;
-    }
-    static bool const callOnce = PyInitThreads();
-}
 
 CppythonProxyBase::CppythonProxyBase(PyObject* self)
     : self_(self)
