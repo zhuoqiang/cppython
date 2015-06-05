@@ -710,7 +710,7 @@ class CppythonProxyBase
 {
 protected:    
     CppythonProxyBase(PyObject* self);
-    ~CppythonProxyBase();
+    virtual ~CppythonProxyBase();
     
     PyObject* Self() const
     {
