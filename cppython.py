@@ -844,10 +844,10 @@ class CppVisitor(BaseVisitor):
         stem = os.path.basename(os.path.splitext(filename)[0])
         self.writeline("// {}", self.banner)
         self.writeline('#include "{}"', self.header_file_path)
-        self.writeline('#include "{}_api.h"', self.name)
         self.file.write('''
-#include <Python.h>
 #include <stdexcept>
+#include <Python.h>
+#include "%s.h"
 
 CppythonProxyBase::CppythonProxyBase(PyObject* self)
     : self_(self)
@@ -855,9 +855,6 @@ CppythonProxyBase::CppythonProxyBase(PyObject* self)
     if (self_ == NULL) {
         throw std::runtime_error("self object is NULL");
     }
-    if (import_%s()) {
-        throw std::runtime_error("could not import python extension module");
-    } 
 }
 
 CppythonProxyBase::~CppythonProxyBase()
@@ -962,7 +959,7 @@ class PxiVisitor(BaseVisitor):
 
         self.writeline("'''{}'''", self.banner)        
         self.writeline('import types')
-        self.writeline('cdef public api bool cppython_has_method(object self, const char* method_name) with gil:')
+        self.writeline('cdef public bool cppython_has_method(object self, const char* method_name) with gil:')
         with indent(self):
             # python3 need method name to be Unicode, which python2 could handle as well
             # we encode the method name to unicode
@@ -1032,7 +1029,7 @@ class PxiVisitor(BaseVisitor):
         return_name = self.get_use_type(return_name)
         
         parameters_list = ', '.join(['object self', parameters_list])
-        self.writeline('cdef public api {} {}_{}_proxy_call({}) with gil:',
+        self.writeline('cdef public {} {}_{}_proxy_call({}) with gil:',
                        return_name, self.class_name,
                        name, parameters_list)
         
