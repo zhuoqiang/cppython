@@ -98,11 +98,13 @@ class Test(unittest.TestCase):
         
     def test_apply_visitor(self):
         directory = 'test_module'
-        setupVisitor = lambda name, direcotry: SetupVisitor(name, direcotry, 
-                            sources=['test_module/for_test.cpp'], compile_flag=['-Wno-unused-function'])
-        v = VisitorGroup(v('foo', directory) for v in
-                         (PxdVisitor, PyxVisitor, CppVisitor, HppVisitor, PxiVisitor, PxdProxyVisitor, setupVisitor))
+        module = 'foo'
+        v = VisitorGroup(v(module, directory) for v in
+                         (PxdVisitor, PyxVisitor, CppVisitor, HppVisitor, PxiVisitor, PxdProxyVisitor))
         apply([self.tu.cursor], v)
+        generate_setup_file(
+            module, directory, 
+            sources=['test_module/for_test.cpp'], compile_flag=['-Wno-unused-function'])
 
         
 if __name__ == '__main__':
