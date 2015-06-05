@@ -852,12 +852,10 @@ CppythonProxyBase::CppythonProxyBase(PyObject* self)
     if (import_%s()) {
         throw std::runtime_error("could not import python extension module");
     } 
-    Py_INCREF(self_);
 }
 
 CppythonProxyBase::~CppythonProxyBase()
 {
-    Py_DECREF(self_);
 }
 
 ''' % self.name)
