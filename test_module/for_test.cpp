@@ -2,6 +2,8 @@
 #include <cstring>
 #include <iostream>
 
+using namespace std;
+
 namespace for_test_namespace {
     
     S1 build_s1(int a, char const* b)
@@ -45,4 +47,11 @@ namespace for_test_namespace {
         s1->a = 222;
         return old;
     }
+    
+    C1::~C1()
+    {
+        _c2->a = 1024;
+        cout << "\nC1::~C1()" << endl;
+    }
+    
 }

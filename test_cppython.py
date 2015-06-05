@@ -73,6 +73,7 @@ class Test(unittest.TestCase):
             call.on_method('normal_method', 'int', [('int', 'n')], 'public', ''),
             call.on_method('char_pointer_method', 'const char *', [('int', 'n'), ('const char *', 'p')], 'public', 'virtual'),
             call.on_method('static_method', 'int', [], 'public', 'static'),
+            call.on_field('a', 'int'),
             call.on_class_end('C2'),
             
             call.on_class_begin('class', 'C1', False),

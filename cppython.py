@@ -449,7 +449,10 @@ class PxdProxyVisitor(BaseVisitor):
         self.reset_indent(-1)
         
     def on_field(self, name, typename):
-        pass
+        # TODO enhance 
+        if self.class_name is not None:
+            # only define inside class
+            self.writeline('{} {}', typename, name)        
         
     def on_method(self, name, return_type, parameters, access, method_type):
         parameters = [(split_namespace_name(t)[0], n) for (t, n) in parameters]
@@ -703,6 +706,13 @@ class HppVisitor(BaseVisitor):
         self.writeline('#include "{}"', self.header_file_path)
         self.writeline()        
         self.file.write('''
+        
+#if __cplusplus > 199711L
+#define CPPYTHON_CPP_STD11_OVERRIDE override
+#else
+#define CPPYTHON_CPP_STD11_OVERRIDE
+#endif        
+        
 struct _object;
 typedef _object PyObject;
 
@@ -792,7 +802,7 @@ private:
     def on_method(self, name, return_type, parameters, access, method_type):        
         if method_type in ('pure', 'virtual'):
             parameters_list = ', '.join('{} {}'.format(t, n) for (t, n) in parameters)
-            self.writeline('{} {}({});', return_type, name, parameters_list)
+            self.writeline('{} {}({}) CPPYTHON_CPP_STD11_OVERRIDE;', return_type, name, parameters_list)
 
             # if method_type == 'virtual' and method_type != 'pure':
             #     # make base c++ class normal virtual method accessable from python sub class

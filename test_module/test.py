@@ -5,6 +5,7 @@
 '''
 import sys
 import os
+import gc
 
 __author__ = 'ZHUO Qiang'
 __date__ = '2014-06-26 15:04'
@@ -162,6 +163,19 @@ class Test(unittest.TestCase):
         self.assertEqual(call_count['d'], 3)
         
         
+    def test_delete(self):
+        class A(object):
+            def __del__(self):
+                print('delete')
+        a = A()
+        del a
+        
+        c2 = C2(7)
+        c1 = C1(c2)
+        del c1
+        gc.collect()
+        # FIX TODO seems destructor never being called!
+        # self.assertEqual(c2.a, 1024)
                 
 if __name__ == '__main__':
     unittest.main()

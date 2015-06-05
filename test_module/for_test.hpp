@@ -54,13 +54,13 @@ namespace for_test_namespace {
         void void_method() {}
         
         C2(int a)
-            : _a(a)
+            : a(a)
         {}
         
         virtual int pure_virtual_method() = 0;
         
         int normal_method(int n) {
-            return 1 + n + _a;
+            return 1 + n + a;
         }
         
         virtual char const* char_pointer_method(int n, const char* p) {
@@ -73,8 +73,7 @@ namespace for_test_namespace {
         
         virtual ~C2() {}
         
-    private:
-        int _a;
+        int a;
     };
     
     class C1
@@ -94,7 +93,7 @@ namespace for_test_namespace {
         //     return _c2;
         // }
 
-        virtual ~C1() {}        
+        virtual ~C1();
         
     private:
         C2* _c2;
