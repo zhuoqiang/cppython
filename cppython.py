@@ -56,9 +56,11 @@ def parse_cpp_file(file_path, include_paths=None):
         filename=file_path,
         args=['-x', 'c++'],
         options=(
-            TranslationUnit.PARSE_INCOMPLETE|
-            TranslationUnit.PARSE_SKIP_FUNCTION_BODIES|
-            TranslationUnit.PARSE_DETAILED_PROCESSING_RECORD),
+            TranslationUnit.PARSE_INCOMPLETE
+            | TranslationUnit.PARSE_SKIP_FUNCTION_BODIES
+            | TranslationUnit.PARSE_DETAILED_PROCESSING_RECORD # for Macro definition
+            | TranslationUnit.PARSE_INCLUDE_BRIEF_COMMENTS_IN_CODE_COMPLETION # for comment doc
+        ),
     )
     return tu
 
@@ -237,8 +239,9 @@ class BaseVisitor(object):
             self.file.close()
         self.indent_level = 0
         
-    def writeline(self, line='', *l, **kw):
-        self.file.write(''.join((self.indent_level*self.INDENT, line.format(*l, **kw), '\n')))
+    def writeline(self_, line='', *l, **kw):
+        # change self to self_ to avoid name conflick so that client could use **locals() as kw
+        self_.file.write(''.join((self_.indent_level*self_.INDENT, line.format(*l, **kw), '\n')))
     
     def reset_indent(self, level=0):
         if level == 0:
@@ -254,7 +257,37 @@ class BaseVisitor(object):
     def on_class_declaration(self, compound_name, name, typedef):
         pass
 
+    def on_macro_value(self, *l, **kw):
+        pass
 
+    def on_enum(self, *l, **kw):
+        pass
+    
+    def on_typedef(self, *l, **kw):
+        pass
+    
+    def on_pod_begin(self, *l, **kw):
+        pass
+    
+    def on_field(self, *l, **kw):
+        pass
+    
+    def on_pod_end(self, *l, **kw):
+        pass
+    
+    def on_class_begin(self, *l, **kw):
+        pass
+    
+    def on_method(self, *l, **kw):
+        pass
+    
+    def on_class_end(self, *l, **kw):
+        pass
+    
+    def on_file_end(self, *l, **kw):
+        pass
+    
+    
 @contextmanager        
 def indent(visitor):
     visitor.reset_indent(1)
@@ -1136,9 +1169,7 @@ def main(argv):
     visitors = [v(module_name, directory) for v in
                 (PxdVisitor, PyxVisitor, CppVisitor, HppVisitor, PxiVisitor, PxdProxyVisitor)]
     
-    for header_file_path in header:
-        tu = parse_cpp_file(header_file_path)
-        apply([tu.cursor], VisitorGroup(visitors))
+    apply([parse_cpp_file(h).cursor for h in header], VisitorGroup(visitors))
         
     for v in visitors:
         print('generating {} ...'.format(v.file.name))
