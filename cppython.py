@@ -12,6 +12,10 @@ import datetime
 import argparse
 from datetime import datetime
 from contextlib import contextmanager
+try:
+    from StringIO import StringIO
+except ImportError:
+    from io import StringIO
 
 from clang.cindex import *
 import clang
