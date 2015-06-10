@@ -4,6 +4,7 @@
 '''Bring C++ classes to python
 '''
 from __future__ import print_function
+from __future__ import unicode_literals
 
 import sys
 import os
@@ -12,10 +13,7 @@ import datetime
 import argparse
 from datetime import datetime
 from contextlib import contextmanager
-try:
-    from StringIO import StringIO
-except ImportError:
-    from io import StringIO
+from io import BytesIO
 
 from clang.cindex import *
 import clang
@@ -81,10 +79,15 @@ def pairwise(iterable):
         last = i
     yield last, None
     
-def get_comment(cursor):
+def get_brief_comment(cursor, encoding='utf-8'):
     # TODO add docstring from comment
-    return cursor.brief_comment.strip().strip('/').strip()
+    return cursor.brief_comment.decode(encoding).strip().strip('/').strip()
     
+def get_raw_comment(cursor, encoding='utf-8'):
+    # TODO add docstring from comment
+    comment = cursor.raw_comment.decode(encoding)
+    return '\n'.join(line.strip().strip('/').strip() for line in comment.split('\n'))
+
     
 def get_literal(cursor):
     for t in cursor.get_tokens():
@@ -192,7 +195,7 @@ def apply(children, visitor):
                     method_type = 'pure'
                 elif child.is_virtual_method():
                     method_type = 'virtual'
-                visitor.on_method(name, return_type, parameters, access, method_type)
+                visitor.on_method(name, return_type, parameters, access, method_type, child)
                 
         elif child.kind == CursorKind.FUNCTION_DECL:
             name = u(child.spelling)
@@ -225,9 +228,9 @@ class VisitorGroup(object):
 class IndentFile(object):
     def __init__(self, path=None, indent='    '):
         if path:
-            self.file = open(path, 'w')
+            self.file = open(path, 'wb')
         else:
-            self.file = StringIO()
+            self.file = BytesIO()
         self.indent = indent
         self.level = 0
         
@@ -244,12 +247,16 @@ class IndentFile(object):
             self.line()
         self.level = max(0, self.level+level)
     
-    def line(self_, line_='', *l, **kw):
+    def line(self_, line_=u'', *l, **kw):
         # change self to self_ to avoid name conflick so that client could use **locals() as kw
-        self_.file.write(''.join((self_.level*self_.indent, line_.format(*l, **kw), '\n')))
+        line = u''.join((self_.level*self_.indent, line_.format(*l, **kw), u'\n'))
+        self_.file.write(line.encode('utf-8'))
         
     def write(self, s):
-        self.file.write(s)
+        if isinstance(s, bytes):
+            self.file.write(s)
+        else:
+            self.file.write(s.encode('utf-8'))
         
     @property
     def name(self):
@@ -418,7 +425,7 @@ class PxdVisitor(BaseVisitor):
     def on_constructor(self, name, parameters):
         pass
         
-    def on_method(self, name, return_type, parameters, access, method_type):        
+    def on_method(self, name, return_type, parameters, access, method_type, cursor, *l, **kw):        
         pass
         
     def on_function(self, name, return_type, parameters):
@@ -517,7 +524,7 @@ class PxdProxyVisitor(BaseVisitor):
             # only define inside class
             self.file.line('{} {}', typename, name)        
         
-    def on_method(self, name, return_type, parameters, access, method_type):
+    def on_method(self, name, return_type, parameters, access, method_type, cursor, *l, **kw):
         parameters = [(split_namespace_name(t)[0], n) for (t, n) in parameters]
         parameters_list = ', '.join('{} {}'.format(self.get_use_type(t), n) for (t, n) in parameters)
         return_name, namespaces = split_namespace_name(return_type)
@@ -672,7 +679,7 @@ class PyxVisitor(BaseVisitor):
                     self.file.line('self._this.{} = value', name)
         
                     
-    def on_method(self, name, return_type, parameters, access, method_type):        
+    def on_method(self, name, return_type, parameters, access, method_type, cursor, *l, **kw):        
         # remove namespace and reference
         parameters = [(split_namespace_name(t)[0], n) for (t, n) in parameters]
         parameters_list = 'self, ' + ', '.join('{} {}'.format(self.get_use_type(t), n) for (t, n) in parameters)
@@ -862,7 +869,7 @@ private:
     def on_field(self, name, typename):
         pass
         
-    def on_method(self, name, return_type, parameters, access, method_type):        
+    def on_method(self, name, return_type, parameters, access, method_type, cursor, *l, **kw):
         if method_type in ('pure', 'virtual'):
             parameters_list = ', '.join('{} {}'.format(t, n) for (t, n) in parameters)
             self.file.line('{} {}({}) CPPYTHON_CPP_STD11_OVERRIDE;', return_type, name, parameters_list)
@@ -958,7 +965,7 @@ CppythonProxyBase::~CppythonProxyBase()
     def on_field(self, name, typename):
         pass
         
-    def on_method(self, name, return_type, parameters, access, method_type):        
+    def on_method(self, name, return_type, parameters, access, method_type, cursor, *l, **kw):        
         if method_type in ('pure', 'virtual'):
             parameters_list = ', '.join('{} {}'.format(t, n) for (t, n) in parameters)
             parameters_name = ', '.join(n for (t, n) in parameters)
@@ -1073,7 +1080,7 @@ class PxiVisitor(BaseVisitor):
             return '{}.{}{}'.format(self.import_name, unquanlified_type, pointer)
         return typename
         
-    def on_method(self, name, return_type, parameters, access, method_type):        
+    def on_method(self, name, return_type, parameters, access, method_type, cursor, *l, **kw):        
         if method_type not in ('virtual', 'pure'):
             return
             

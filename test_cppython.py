@@ -8,7 +8,11 @@ import sys
 import os
 import unittest
 from cppython import *
-from mock import MagicMock, call
+try:
+    import unittest.mock as mock
+except:
+    import mock
+from mock import MagicMock, call, ANY
 
 __author__ = 'ZHUO Qiang'
 __date__ = '2014-06-23 22:00'
@@ -67,21 +71,21 @@ class Test(unittest.TestCase):
             call.on_function('use_s1_pointer', 'void', [('for_test_namespace::S1 *', 's1')]),
             
             call.on_class_begin('class', 'C2', False),
-            call.on_method('void_method', 'void', [], 'public', ''),
+            call.on_method('void_method', 'void', [], 'public', '', ANY),
             call.on_constructor('C2', [('int', 'a')]),
-            call.on_method('pure_virtual_method', 'int', [], 'public', 'pure'),
-            call.on_method('normal_method', 'int', [('int', 'n')], 'public', ''),
-            call.on_method('char_pointer_method', 'const char *', [('int', 'n'), ('const char *', 'p')], 'public', 'virtual'),
-            call.on_method('static_method', 'int', [], 'public', 'static'),
+            call.on_method('pure_virtual_method', 'int', [], 'public', 'pure', ANY),
+            call.on_method('normal_method', 'int', [('int', 'n')], 'public', '', ANY),
+            call.on_method('char_pointer_method', 'const char *', [('int', 'n'), ('const char *', 'p')], 'public', 'virtual', ANY),
+            call.on_method('static_method', 'int', [], 'public', 'static', ANY),
             call.on_field('a', 'int'),
             call.on_class_end('C2'),
             
             call.on_class_begin('class', 'C1', False),
             call.on_constructor('C1', [('for_test_namespace::C2 *', 'c2')]),
-            call.on_method('virtual_method', 'int', [], 'public', 'virtual'),
-            call.on_method('virtual_method_call_other', 'int', [], 'public', 'virtual'),            
-            call.on_method('on_struct', 'int', [('for_test_namespace::S1 &', 's1')], 'public', 'virtual'),
-            call.on_method('on_struct_pointer', 'int', [('for_test_namespace::S1 *', 's1')], 'public', 'virtual'),
+            call.on_method('virtual_method', 'int', [], 'public', 'virtual', ANY),
+            call.on_method('virtual_method_call_other', 'int', [], 'public', 'virtual', ANY),            
+            call.on_method('on_struct', 'int', [('for_test_namespace::S1 &', 's1')], 'public', 'virtual', ANY),
+            call.on_method('on_struct_pointer', 'int', [('for_test_namespace::S1 *', 's1')], 'public', 'virtual', ANY),
             # call.on_method('get_c2', 'for_test_namespace::C2 *', [], 'public', 'virtual'),
             
             call.on_class_end('C1'),
