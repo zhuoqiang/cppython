@@ -85,7 +85,10 @@ def get_brief_comment(cursor, encoding='utf-8'):
     
 def get_raw_comment(cursor, encoding='utf-8'):
     # TODO add docstring from comment
-    comment = cursor.raw_comment.decode(encoding)
+    try: 
+        comment = cursor.raw_comment.decode(encoding)
+    except UnicodeDecodeError:
+        comment = cursor.raw_comment.decode('gbk')
     return '\n'.join(line.strip().strip('/').strip() for line in comment.split('\n'))
 
     
